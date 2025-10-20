@@ -19,7 +19,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(nullable=False, unique=True)
     email: Mapped[str] = mapped_column(nullable=False, unique=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
-    updated_at: Mapped[datetime] = mapped_column(onupdate=datetime.now)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(default=datetime.now, onupdate=datetime.now)
     
     # Связь с таблицей адресов
     addresses = relationship("Address", back_populates="user")
@@ -39,7 +39,7 @@ class Address(Base):
     country: Mapped[str] = mapped_column(nullable=False)
     is_primary: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
-    updated_at: Mapped[datetime] = mapped_column(onupdate=datetime.now)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(default=datetime.now, onupdate=datetime.now)
     
     # Обратная связь с таблицей пользователей
     user = relationship("User", back_populates="addresses")

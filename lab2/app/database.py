@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 import os
 
@@ -9,5 +10,12 @@ DATABASE_URL = f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_
 
 engine = create_engine(
     DATABASE_URL,
-    echo=True  # Включает логирование SQL-запросов в консоль
+    echo=True # Логирование SQL-запросов в консоль
 )
+
+session_factory = sessionmaker(engine)
+
+def get_session():
+    return session_factory()
+
+
