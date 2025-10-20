@@ -2,6 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 import os
+from contextlib import contextmanager
 
 
 load_dotenv()
@@ -15,7 +16,16 @@ engine = create_engine(
 
 session_factory = sessionmaker(engine)
 
+@contextmanager
 def get_session():
-    return session_factory()
+    session = session_factory()
+    try:
+        yield session
+        session.commit()
+    except:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
