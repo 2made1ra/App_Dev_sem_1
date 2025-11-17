@@ -1,31 +1,25 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from dotenv import load_dotenv
 import os
-from contextlib import contextmanager
 
 
 load_dotenv()
 
-DATABASE_URL = f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@localhost:5433/{os.getenv('POSTGRES_DB')}"
-
-engine = create_engine(
-    DATABASE_URL,
-    echo=True # Логирование SQL-запросов в консоль
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+asyncpg://admin:admin@localhost:5433/lab_db2"
 )
 
-session_factory = sessionmaker(engine)
 
-@contextmanager
-def get_session():
-    session = session_factory()
-    try:
-        yield session
-        session.commit()
-    except:
-        session.rollback()
-        raise
-    finally:
-        session.close()
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=True
+)
+
+async_session_factory = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False
+)
 
 

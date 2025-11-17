@@ -11,9 +11,9 @@ class Base(DeclarativeBase):
 class User(Base):
     __tablename__ = 'users'
     
-    id: Mapped[UUID] = mapped_column(
+    id: Mapped[int] = mapped_column(
         primary_key=True,
-        default=uuid4,
+        autoincrement=True,
     )
     username: Mapped[str] = mapped_column(nullable=False, unique=True)
     email: Mapped[str] = mapped_column(nullable=False, unique=True)
