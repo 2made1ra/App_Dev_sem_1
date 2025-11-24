@@ -32,7 +32,7 @@ class Address(Base):
         primary_key=True,
         default=uuid4,
     )
-    user_id: Mapped[UUID] = mapped_column(ForeignKey('users.id'), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
     street: Mapped[str] = mapped_column(nullable=False)
     city: Mapped[str] = mapped_column(nullable=False)
     state: Mapped[str] = mapped_column()
@@ -59,8 +59,28 @@ class Product(Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
     updated_at: Mapped[Optional[datetime]] = mapped_column(default=datetime.now, onupdate=datetime.now)
 
-    # связь с заками
-    orders = relationship("Order", back_populates="product")
+    # связь с элементами заказов
+    order_items = relationship("OrderItem", back_populates="product")
+
+
+class OrderItem(Base):
+    """Промежуточная таблица для связи Order и Product (many-to-many)."""
+    __tablename__ = 'order_items'
+    
+    id: Mapped[UUID] = mapped_column(
+        primary_key=True,
+        default=uuid4,
+    )
+    order_id: Mapped[UUID] = mapped_column(ForeignKey('orders.id'), nullable=False)
+    product_id: Mapped[UUID] = mapped_column(ForeignKey('products.id'), nullable=False)
+    quantity: Mapped[int] = mapped_column(nullable=False, default=1)
+    price_at_order: Mapped[float] = mapped_column(nullable=False)  # Цена на момент заказа
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
+    
+    # Связи
+    order = relationship("Order", back_populates="items")
+    product = relationship("Product", back_populates="order_items")
+
 
 class Order(Base):
     __tablename__ = 'orders'
@@ -69,11 +89,9 @@ class Order(Base):
         primary_key=True,
         default=uuid4,
     )
-    user_id: Mapped[UUID] = mapped_column(ForeignKey('users.id'), nullable=False)
-    product_id: Mapped[UUID] = mapped_column(ForeignKey('products.id'), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
     delivery_address_id: Mapped[UUID] = mapped_column(ForeignKey('addresses.id'), nullable=False)
     
-    quantity: Mapped[int] = mapped_column(nullable=False, default=1)
     total_price: Mapped[float] = mapped_column(nullable=False)
     status: Mapped[str] = mapped_column(nullable=False, default="pending")
     order_date: Mapped[datetime] = mapped_column(default=datetime.now)
@@ -82,5 +100,5 @@ class Order(Base):
     
     # Связи с другими таблицами
     user = relationship("User", back_populates="orders")
-    product = relationship("Product", back_populates="orders")
     delivery_address = relationship("Address")
+    items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
