@@ -45,17 +45,14 @@ class TestOrderService:
         mock_product_repository,
     ):
         """Тест успешного создания заказа."""
-        # Мокаем пользователя
         mock_user = Mock(spec=User)
         mock_user.id = 1
         mock_user.email = "test@example.com"
 
-        # Мокаем адрес
         mock_address = Mock(spec=Address)
         mock_address.id = 1
-        mock_address.user_id = 1  # Адрес принадлежит пользователю
+        mock_address.user_id = 1
 
-        # Мокаем продукты
         mock_product1 = Mock(spec=Product)
         mock_product1.id = 1
         mock_product1.name = "Product 1"
@@ -68,7 +65,6 @@ class TestOrderService:
         mock_product2.price = 50.0
         mock_product2.stock_quantity = 5
 
-        # Мокаем элементы заказа
         mock_item1 = Mock(spec=OrderItem)
         mock_item1.product_id = 1
         mock_item1.quantity = 2
@@ -79,16 +75,14 @@ class TestOrderService:
         mock_item2.quantity = 1
         mock_item2.price_at_order = 50.0
 
-        # Мокаем заказ
         mock_order = Mock(spec=Order)
         mock_order.id = 1
         mock_order.user_id = 1
         mock_order.delivery_address_id = 1
-        mock_order.total_price = 250.0  # 100*2 + 50*1
+        mock_order.total_price = 250.0
         mock_order.status = "pending"
         mock_order.items = [mock_item1, mock_item2]
 
-        # Настраиваем моки для session.execute (для проверки User, Address и Order)
         execute_call_count = 0
         
         async def mock_execute(stmt):
@@ -97,16 +91,11 @@ class TestOrderService:
             stmt_str = str(stmt).lower()
             execute_call_count += 1
             
-            # Определяем, что возвращать на основе запроса
-            # Порядок важен: сначала проверяем Order (может содержать "user" в "delivery_address")
             if "orders" in stmt_str and execute_call_count > 2:
-                # Для запроса Order (после проверки User и Address) возвращаем через scalar_one
                 result_mock.scalar_one = Mock(return_value=mock_order)
             elif "users" in stmt_str or (execute_call_count == 1 and "user" in stmt_str and "order" not in stmt_str):
-                # Первый вызов - проверка User
                 result_mock.scalar_one_or_none = Mock(return_value=mock_user)
             elif "addresses" in stmt_str or (execute_call_count == 2 and "address" in stmt_str and "order" not in stmt_str):
-                # Второй вызов - проверка Address
                 result_mock.scalar_one_or_none = Mock(return_value=mock_address)
             else:
                 result_mock.scalar_one_or_none = Mock(return_value=None)
@@ -114,11 +103,8 @@ class TestOrderService:
 
         mock_session.execute = AsyncMock(side_effect=mock_execute)
 
-        # Настраиваем моки репозиториев
         mock_product_repository.get_by_id.side_effect = [mock_product1, mock_product2]
         mock_order_repository.create.return_value = mock_order
-
-        # Создаем данные заказа
         order_data = OrderCreate(
             user_id=1,
             delivery_address_id=1,
@@ -135,21 +121,18 @@ class TestOrderService:
         assert result.total_price == 250.0
         assert len(result.items) == 2
 
-        # Проверяем, что продукты были получены
         assert mock_product_repository.get_by_id.call_count == 2
         mock_product_repository.get_by_id.assert_any_call(mock_session, 1)
         mock_product_repository.get_by_id.assert_any_call(mock_session, 2)
 
-        # Проверяем, что заказ был создан
         mock_order_repository.create.assert_called_once()
         call_args = mock_order_repository.create.call_args
         assert call_args[0][1] == order_data
-        assert call_args[0][2] == 250.0  # total_price
+        assert call_args[0][2] == 250.0
 
-        # Проверяем, что количество товара было обновлено
-        assert mock_product1.stock_quantity == 8  # 10 - 2
-        assert mock_product2.stock_quantity == 4  # 5 - 1
-        assert mock_session.add.call_count == 2  # Оба продукта были добавлены для обновления
+        assert mock_product1.stock_quantity == 8
+        assert mock_product2.stock_quantity == 4
+        assert mock_session.add.call_count == 2
 
         mock_session.commit.assert_called_once()
 
@@ -173,7 +156,7 @@ class TestOrderService:
         mock_product.id = 1
         mock_product.name = "Product 1"
         mock_product.price = 100.0
-        mock_product.stock_quantity = 5  # Доступно только 5
+        mock_product.stock_quantity = 5
 
         async def mock_execute(stmt):
             result_mock = Mock()
@@ -191,7 +174,7 @@ class TestOrderService:
         order_data = OrderCreate(
             user_id=1,
             delivery_address_id=1,
-            items=[OrderItemCreate(product_id=1, quantity=10)],  # Заказываем 10, а есть только 5
+            items=[OrderItemCreate(product_id=1, quantity=10)],
         )
 
         with pytest.raises(
@@ -230,7 +213,7 @@ class TestOrderService:
             return result_mock
 
         mock_session.execute = AsyncMock(side_effect=mock_execute)
-        mock_product_repository.get_by_id.return_value = None  # Продукт не найден
+        mock_product_repository.get_by_id.return_value = None
 
         order_data = OrderCreate(
             user_id=1,
@@ -255,7 +238,7 @@ class TestOrderService:
         async def mock_execute(stmt):
             result_mock = Mock()
             if "users" in str(stmt).lower() or "User" in str(stmt):
-                result_mock.scalar_one_or_none.return_value = None  # Пользователь не найден
+                result_mock.scalar_one_or_none.return_value = None
             else:
                 result_mock.scalar_one_or_none.return_value = None
             return result_mock
@@ -290,7 +273,7 @@ class TestOrderService:
             if "users" in str(stmt).lower() or "User" in str(stmt):
                 result_mock.scalar_one_or_none.return_value = mock_user
             elif "addresses" in str(stmt).lower() or "Address" in str(stmt):
-                result_mock.scalar_one_or_none.return_value = None  # Адрес не найден
+                result_mock.scalar_one_or_none.return_value = None
             else:
                 result_mock.scalar_one_or_none.return_value = None
             return result_mock
@@ -322,7 +305,7 @@ class TestOrderService:
 
         mock_address = Mock(spec=Address)
         mock_address.id = 1
-        mock_address.user_id = 2  # Адрес принадлежит другому пользователю
+        mock_address.user_id = 2
 
         async def mock_execute(stmt):
             result_mock = Mock()
@@ -363,7 +346,6 @@ class TestOrderService:
         mock_address.id = 1
         mock_address.user_id = 1
 
-        # Продукты с разными ценами
         mock_product1 = Mock(spec=Product)
         mock_product1.id = 1
         mock_product1.price = 100.0
@@ -405,17 +387,16 @@ class TestOrderService:
             user_id=1,
             delivery_address_id=1,
             items=[
-                OrderItemCreate(product_id=1, quantity=2),  # 100 * 2 = 200
-                OrderItemCreate(product_id=2, quantity=3),  # 50 * 3 = 150
-                OrderItemCreate(product_id=3, quantity=4),  # 25 * 4 = 100
+                OrderItemCreate(product_id=1, quantity=2),
+                OrderItemCreate(product_id=2, quantity=3),
+                OrderItemCreate(product_id=3, quantity=4),
             ],
         )
 
         result = await order_service.create(mock_session, order_data)
 
-        # Проверяем, что total_price был рассчитан правильно: 200 + 150 + 100 = 450
         call_args = mock_order_repository.create.call_args
-        assert call_args[0][2] == 450.0  # total_price
+        assert call_args[0][2] == 450.0
 
     @pytest.mark.asyncio
     async def test_get_by_id_success(

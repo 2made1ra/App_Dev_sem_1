@@ -24,7 +24,7 @@ class TestOrderRepository:
             description="User for order tests",
         )
         user = await user_repository.create(session, user_data)
-        await session.flush()  # Используем flush вместо commit для изоляции
+        await session.flush()
         return user
 
     @pytest.fixture
@@ -43,7 +43,6 @@ class TestOrderRepository:
         )
         session.add(address)
         await session.flush()
-        await session.refresh(address)
         return address
 
     @pytest.fixture
@@ -61,7 +60,7 @@ class TestOrderRepository:
             )
             product = await product_repository.create(session, product_data)
             products.append(product)
-        await session.flush()  # Используем flush вместо commit для изоляции
+        await session.flush()
         return products
 
     @pytest.mark.asyncio
@@ -91,7 +90,7 @@ class TestOrderRepository:
         )
 
         order = await order_repository.create(session, order_data, total_price)
-        await session.flush()  # Используем flush вместо commit для изоляции
+        await session.flush()
 
         assert order.id is not None
         assert order.user_id == test_user.id
@@ -132,7 +131,7 @@ class TestOrderRepository:
         )
 
         created_order = await order_repository.create(session, order_data, total_price)
-        await session.flush()  # Используем flush вместо commit для изоляции
+        await session.flush()
 
         # Получаем заказ по ID
         found_order = await order_repository.get_by_id(session, created_order.id)
@@ -176,14 +175,14 @@ class TestOrderRepository:
         )
 
         created_order = await order_repository.create(session, order_data, total_price)
-        await session.flush()  # Используем flush вместо commit для изоляции
+        await session.flush()
 
         # Обновляем статус
         update_data = OrderUpdate(status="completed")
         updated_order = await order_repository.update(
             session, created_order.id, update_data
         )
-        await session.flush()  # Используем flush вместо commit для изоляции
+        await session.flush()
 
         assert updated_order.id == created_order.id
         assert updated_order.status == "completed"
@@ -223,7 +222,7 @@ class TestOrderRepository:
         )
 
         created_order = await order_repository.create(session, order_data, total_price)
-        await session.flush()  # Используем flush вместо commit для изоляции
+        await session.flush()
 
         order_id = created_order.id
         
@@ -272,7 +271,7 @@ class TestOrderRepository:
                 items=order_items,
             )
             await order_repository.create(session, order_data, total_price)
-        await session.flush()  # Используем flush вместо commit для изоляции
+        await session.flush()
 
         orders = await order_repository.get_by_filter(session, count=10, page=1)
         total = await order_repository.count(session)
@@ -312,7 +311,7 @@ class TestOrderRepository:
 
         await order_repository.create(session, order1_data, total_price)
         await order_repository.create(session, order2_data, total_price)
-        await session.flush()  # Используем flush вместо commit для изоляции
+        await session.flush()
 
         # Фильтр по статусу
         orders = await order_repository.get_by_filter(
@@ -356,7 +355,7 @@ class TestOrderRepository:
         )
 
         order = await order_repository.create(session, order_data, total_price)
-        await session.flush()  # Используем flush вместо commit для изоляции
+        await session.flush()
 
         assert len(order.items) == 3
         assert order.total_price == total_price

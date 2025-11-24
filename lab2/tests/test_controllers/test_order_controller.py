@@ -42,8 +42,6 @@ class TestOrderController:
             is_primary=True,
         )
         controller_session.add(address)
-        await controller_session.flush()
-        await controller_session.refresh(address)
         await controller_session.commit()
         return address
 

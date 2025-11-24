@@ -81,13 +81,9 @@ class TestProductService:
         self, product_service: ProductService, mock_session, mock_product_repository
     ):
         """Тест создания продукта с невалидной ценой (<= 0)."""
-        # Pydantic валидирует на уровне схемы, поэтому используем model_construct для обхода валидации
-        # или тестируем через сервис с уже валидной схемой, но с невалидным значением после создания
-        # В данном случае валидация происходит на уровне Pydantic, поэтому этот тест не нужен
-        # Вместо этого тестируем валидацию в сервисе после получения данных
         product_data = ProductCreate.model_construct(
             name="Invalid Product",
-            price=0.0,  # Невалидная цена (обходим Pydantic валидацию)
+            price=0.0,
             stock_quantity=10,
         )
 
@@ -101,11 +97,10 @@ class TestProductService:
         self, product_service: ProductService, mock_session, mock_product_repository
     ):
         """Тест создания продукта с отрицательным количеством на складе."""
-        # Используем model_construct для обхода Pydantic валидации
         product_data = ProductCreate.model_construct(
             name="Invalid Product",
             price=10.0,
-            stock_quantity=-1,  # Невалидное количество (обходим Pydantic валидацию)
+            stock_quantity=-1,
         )
 
         with pytest.raises(ValueError, match="Stock quantity cannot be negative"):
@@ -164,8 +159,7 @@ class TestProductService:
         existing_product = Mock(spec=Product)
         existing_product.id = 1
 
-        # Используем model_construct для обхода Pydantic валидации
-        update_data = ProductUpdate.model_construct(price=0.0)  # Невалидная цена
+        update_data = ProductUpdate.model_construct(price=0.0)
 
         mock_product_repository.get_by_id.return_value = existing_product
 
@@ -182,8 +176,7 @@ class TestProductService:
         existing_product = Mock(spec=Product)
         existing_product.id = 1
 
-        # Используем model_construct для обхода Pydantic валидации
-        update_data = ProductUpdate.model_construct(stock_quantity=-1)  # Невалидное количество
+        update_data = ProductUpdate.model_construct(stock_quantity=-1)
 
         mock_product_repository.get_by_id.return_value = existing_product
 

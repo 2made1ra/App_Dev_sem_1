@@ -76,9 +76,6 @@ class TestUserService:
         mock_user.username = user_data.username
         mock_user.description = user_data.description
 
-        # Мокаем проверку уникальности (email и username не существуют)
-        # _check_email_exists и _check_username_exists используют session.execute напрямую
-        # Для этого нужно замокать session.execute
         async def mock_execute(stmt):
             result_mock = Mock()
             result_mock.scalar_one_or_none.return_value = None
@@ -105,13 +102,11 @@ class TestUserService:
             username="new_user",
         )
 
-        # Мокаем существующего пользователя с таким email
         existing_user = Mock(spec=User)
         existing_user.email = "existing@example.com"
 
         async def mock_execute(stmt):
             result_mock = Mock()
-            # Первый вызов - проверка email (возвращает существующего пользователя)
             if "email" in str(stmt):
                 result_mock.scalar_one_or_none.return_value = existing_user
             else:
@@ -135,23 +130,18 @@ class TestUserService:
             username="existing_user",
         )
 
-        # Мокаем существующего пользователя с таким username
         existing_user = Mock(spec=User)
         existing_user.username = "existing_user"
         existing_user.email = "different@example.com"
 
-        call_count = [0]  # Используем список для изменяемого счетчика
+        call_count = [0]
 
         async def mock_execute(stmt):
             result_mock = Mock()
             call_count[0] += 1
-            # Первый вызов - проверка email (не найден)
-            # Второй вызов - проверка username (найден)
             if call_count[0] == 1:
-                # Проверка email
                 result_mock.scalar_one_or_none.return_value = None
             elif call_count[0] == 2:
-                # Проверка username
                 result_mock.scalar_one_or_none.return_value = existing_user
             else:
                 result_mock.scalar_one_or_none.return_value = None
@@ -185,10 +175,9 @@ class TestUserService:
         mock_user_repository.get_by_id.return_value = existing_user
         mock_user_repository.update.return_value = updated_user
 
-        # Мокаем проверку уникальности username
         async def mock_execute(stmt):
             result_mock = Mock()
-            result_mock.scalar_one_or_none.return_value = None  # username свободен
+            result_mock.scalar_one_or_none.return_value = None
             return result_mock
 
         mock_session.execute = AsyncMock(side_effect=mock_execute)
@@ -228,7 +217,6 @@ class TestUserService:
 
         mock_user_repository.get_by_id.return_value = existing_user
 
-        # Мокаем существующего пользователя с таким email
         existing_user_with_email = Mock(spec=User)
         existing_user_with_email.id = 2
         existing_user_with_email.email = "existing@example.com"
