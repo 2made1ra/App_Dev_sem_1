@@ -1,8 +1,11 @@
 from litestar import Controller, get, post, put, delete
 from litestar.params import Parameter
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from sqlalchemy import select
 
 from app.exceptions import NotFoundException
+from app.models import Order
 from app.schemas.order_schema import (
     OrderCreate,
     OrderUpdate,
@@ -42,7 +45,15 @@ class OrderController(Controller):
             raise NotFoundException(
                 detail=f"Order with ID {order_id} not found"
             )
-        return OrderResponse.model_validate(order)
+        # Убеждаемся, что items загружены перед валидацией Pydantic
+        stmt = (
+            select(Order)
+            .where(Order.id == order.id)
+            .options(selectinload(Order.items))
+        )
+        result = await db_session.execute(stmt)
+        order_with_items = result.scalar_one()
+        return OrderResponse.model_validate(order_with_items)
 
     @get()
     async def get_all_orders(
@@ -94,14 +105,14 @@ class OrderController(Controller):
         self,
         order_service: OrderService,
         db_session: AsyncSession,
-        order_data: OrderCreate,
+        data: OrderCreate,
     ) -> OrderResponse:
         """
         Создать новый заказ с несколькими продуктами.
         Args:
             order_service: Сервис для работы с заказами
             db_session: Сессия базы данных
-            order_data: Данные для создания заказа
+            data: Данные для создания заказа
             
         Returns:
             OrderResponse: Созданный заказ
@@ -110,8 +121,16 @@ class OrderController(Controller):
             HTTPException: Если данные невалидны или недостаточно товара на складе
         """
         try:
-            order = await order_service.create(db_session, order_data)
-            return OrderResponse.model_validate(order)
+            order = await order_service.create(db_session, data)
+            # Убеждаемся, что items загружены перед валидацией Pydantic
+            stmt = (
+                select(Order)
+                .where(Order.id == order.id)
+                .options(selectinload(Order.items))
+            )
+            result = await db_session.execute(stmt)
+            order_with_items = result.scalar_one()
+            return OrderResponse.model_validate(order_with_items)
         except ValueError as e:
             from litestar.exceptions import HTTPException
             raise HTTPException(status_code=400, detail=str(e))
@@ -121,7 +140,7 @@ class OrderController(Controller):
         self,
         order_service: OrderService,
         db_session: AsyncSession,
-        order_data: OrderUpdate,
+        data: OrderUpdate,
         order_id: int = Parameter(gt=0, description="ID заказа"),
     ) -> OrderResponse:
         """
@@ -130,7 +149,7 @@ class OrderController(Controller):
             order_service: Сервис для работы с заказами
             db_session: Сессия базы данных
             order_id: ID заказа (int)
-            order_data: Данные для обновления
+            data: Данные для обновления
             
         Returns:
             OrderResponse: Обновленный заказ
@@ -140,8 +159,16 @@ class OrderController(Controller):
             HTTPException: Если данные невалидны
         """
         try:
-            order = await order_service.update(db_session, order_id, order_data)
-            return OrderResponse.model_validate(order)
+            order = await order_service.update(db_session, order_id, data)
+            # Убеждаемся, что items загружены перед валидацией Pydantic
+            stmt = (
+                select(Order)
+                .where(Order.id == order.id)
+                .options(selectinload(Order.items))
+            )
+            result = await db_session.execute(stmt)
+            order_with_items = result.scalar_one()
+            return OrderResponse.model_validate(order_with_items)
         except ValueError as e:
             error_message = str(e)
             if "not found" in error_message.lower():

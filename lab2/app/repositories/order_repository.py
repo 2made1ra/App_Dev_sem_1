@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete, func
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from app.models import Order, OrderItem
@@ -125,7 +125,7 @@ class OrderRepository:
         order_data: OrderUpdate
     ) -> Order:
         """
-        Обновить заказ.
+        Обновить заказ через ORM.
         
         Args:
             session: Асинхронная сессия базы данных
@@ -138,47 +138,32 @@ class OrderRepository:
         Raises:
             ValueError: Если заказ не найден
         """
+        # Получаем объект заказа через ORM
+        order = await self.get_by_id(session, order_id)
+        
+        if not order:
+            raise ValueError(f"Order with ID {order_id} not found")
+        
+        # Обновляем атрибуты объекта через ORM
         update_data = {
             k: v for k, v in order_data.model_dump(exclude_unset=True).items()
             if v is not None
         }
         
-        if not update_data:
-            order = await self.get_by_id(session, order_id)
-            if not order:
-                raise ValueError(f"Order with ID {order_id} not found")
-            return order
-        
-        stmt = (
-            update(Order)
-            .where(Order.id == order_id)
-            .values(**update_data)
-            .returning(Order)
-        )
-        
-        result = await session.execute(stmt)
-        updated_order = result.scalar_one_or_none()
-        
-        if not updated_order:
-            raise ValueError(f"Order with ID {order_id} not found")
+        for key, value in update_data.items():
+            setattr(order, key, value)
         
         await session.flush()
-        await session.refresh(updated_order)
         
-        # Загружаем items для возврата
-        stmt = (
-            select(Order)
-            .where(Order.id == updated_order.id)
-            .options(selectinload(Order.items))
-        )
-        result = await session.execute(stmt)
-        return result.scalar_one()
+        # Перезагружаем объект с items для возврата
+        updated_order = await self.get_by_id(session, order_id)
+        return updated_order
 
     async def delete(
         self, session: AsyncSession, order_id: int
     ) -> None:
         """
-        Удалить заказ (items удалятся каскадно).
+        Удалить заказ (items удалятся каскадно через ORM).
         
         Args:
             session: Асинхронная сессия базы данных
@@ -187,11 +172,15 @@ class OrderRepository:
         Raises:
             ValueError: Если заказ не найден
         """
-        stmt = delete(Order).where(Order.id == order_id)
-        result = await session.execute(stmt)
+        # Получаем объект заказа с загруженными items для каскадного удаления
+        order = await self.get_by_id(session, order_id)
         
-        if result.rowcount == 0:
+        if not order:
             raise ValueError(f"Order with ID {order_id} not found")
+        
+        # Используем ORM delete - каскадное удаление сработает автоматически
+        await session.delete(order)
+        await session.flush()
 
     async def count(
         self, session: AsyncSession, **kwargs

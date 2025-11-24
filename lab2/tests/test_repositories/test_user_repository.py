@@ -21,7 +21,7 @@ class TestUserRepository:
         )
 
         user = await user_repository.create(session, user_data)
-        await session.commit()
+        await session.flush()  # Используем flush вместо commit для изоляции
 
         assert user.id is not None
         assert user.email == "test@example.com"
@@ -39,7 +39,7 @@ class TestUserRepository:
             description="User for get_by_id test",
         )
         created_user = await user_repository.create(session, user_data)
-        await session.commit()
+        await session.flush()  # Используем flush вместо commit для изоляции
 
         found_user = await user_repository.get_by_id(session, created_user.id)
 
@@ -68,7 +68,7 @@ class TestUserRepository:
             description="Test user",
         )
         created_user = await user_repository.create(session, user_data)
-        await session.commit()
+        await session.flush()  # Используем flush вместо commit для изоляции
 
         # Ищем через get_by_filter с фильтром email
         users = await user_repository.get_by_filter(
@@ -90,13 +90,13 @@ class TestUserRepository:
             description="Original description",
         )
         created_user = await user_repository.create(session, user_data)
-        await session.commit()
+        await session.flush()  # Используем flush вместо commit для изоляции
 
         update_data = UserUpdate(description="Updated description")
         updated_user = await user_repository.update(
             session, created_user.id, update_data
         )
-        await session.commit()
+        await session.flush()  # Используем flush для изоляции
 
         assert updated_user.id == created_user.id
         assert updated_user.username == "test"  # не изменилось
@@ -124,10 +124,10 @@ class TestUserRepository:
             description="User to delete",
         )
         created_user = await user_repository.create(session, user_data)
-        await session.commit()
+        await session.flush()  # Используем flush вместо commit для изоляции
 
         await user_repository.delete(session, created_user.id)
-        await session.commit()
+        await session.flush()  # Используем flush для изоляции
 
         deleted_user = await user_repository.get_by_id(session, created_user.id)
         assert deleted_user is None
@@ -153,7 +153,7 @@ class TestUserRepository:
                 description=f"User {i}",
             )
             await user_repository.create(session, user_data)
-        await session.commit()
+        await session.flush()  # Используем flush для изоляции
 
         users = await user_repository.get_by_filter(session, count=10, page=1)
         total = await user_repository.count(session)
@@ -173,7 +173,7 @@ class TestUserRepository:
                 username=f"paginated_{i}",
             )
             await user_repository.create(session, user_data)
-        await session.commit()
+        await session.flush()  # Используем flush для изоляции
 
         # Первая страница (5 записей)
         page1 = await user_repository.get_by_filter(session, count=5, page=1)
@@ -206,7 +206,7 @@ class TestUserRepository:
         )
         await user_repository.create(session, user_data1)
         await user_repository.create(session, user_data2)
-        await session.commit()
+        await session.flush()  # Используем flush для изоляции
 
         # Фильтр по username
         users = await user_repository.get_by_filter(

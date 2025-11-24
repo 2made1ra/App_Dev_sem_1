@@ -84,14 +84,14 @@ class UserController(Controller):
         self,
         user_service: UserService,
         db_session: AsyncSession,
-        user_data: UserCreate,
+        data: UserCreate,
     ) -> UserResponse:
         """
         Создать нового пользователя.
         Args:
             user_service: Сервис для работы с пользователями
             db_session: Сессия базы данных
-            user_data: Данные для создания пользователя
+            data: Данные для создания пользователя
             
         Returns:
             UserResponse: Созданный пользователь
@@ -100,7 +100,7 @@ class UserController(Controller):
             HTTPException: Если email или username уже существуют
         """
         try:
-            user = await user_service.create(db_session, user_data)
+            user = await user_service.create(db_session, data)
             return UserResponse.model_validate(user)
         except ValueError as e:
             from litestar.exceptions import HTTPException
@@ -111,7 +111,7 @@ class UserController(Controller):
         self,
         user_service: UserService,
         db_session: AsyncSession,
-        user_data: UserUpdate,
+        data: UserUpdate,
         user_id: int = Parameter(gt=0, description="ID пользователя"),
     ) -> UserResponse:
         """
@@ -120,7 +120,7 @@ class UserController(Controller):
             user_service: Сервис для работы с пользователями
             db_session: Сессия базы данных
             user_id: ID пользователя (int)
-            user_data: Данные для обновления
+            data: Данные для обновления
             
         Returns:
             UserResponse: Обновленный пользователь
@@ -130,7 +130,7 @@ class UserController(Controller):
             HTTPException: Если email или username уже существуют
         """
         try:
-            user = await user_service.update(db_session, user_id, user_data)
+            user = await user_service.update(db_session, user_id, data)
             return UserResponse.model_validate(user)
         except ValueError as e:
             error_message = str(e)

@@ -15,20 +15,20 @@ class TestOrderController:
 
     @pytest.fixture
     async def test_user(
-        self, session, user_repository: UserRepository
+        self, controller_session, user_repository: UserRepository
     ) -> User:
         """Создает тестового пользователя."""
         user_data = UserCreate(
             email="order_test@example.com",
             username="order_test_user",
         )
-        user = await user_repository.create(session, user_data)
-        await session.commit()
+        user = await user_repository.create(controller_session, user_data)
+        await controller_session.commit()
         return user
 
     @pytest.fixture
     async def test_address(
-        self, session, test_user: User
+        self, controller_session, test_user: User
     ) -> Address:
         """Создает тестовый адрес."""
         from app.models import Address
@@ -41,15 +41,15 @@ class TestOrderController:
             country="Test Country",
             is_primary=True,
         )
-        session.add(address)
-        await session.flush()
-        await session.refresh(address)
-        await session.commit()
+        controller_session.add(address)
+        await controller_session.flush()
+        await controller_session.refresh(address)
+        await controller_session.commit()
         return address
 
     @pytest.fixture
     async def test_products(
-        self, session, product_repository: ProductRepository
+        self, controller_session, product_repository: ProductRepository
     ) -> list[Product]:
         """Создает тестовые продукты."""
         products = []
@@ -59,16 +59,16 @@ class TestOrderController:
                 price=10.0 * (i + 1),
                 stock_quantity=100,
             )
-            product = await product_repository.create(session, product_data)
+            product = await product_repository.create(controller_session, product_data)
             products.append(product)
-        await session.commit()
+        await controller_session.commit()
         return products
 
     @pytest.mark.asyncio
     async def test_get_order_by_id(
         self,
         client: TestClient,
-        session,
+        controller_session,
         order_repository: OrderRepository,
         test_user: User,
         test_address: Address,
@@ -88,8 +88,8 @@ class TestOrderController:
             items=order_items,
         )
 
-        created_order = await order_repository.create(session, order_data, total_price)
-        await session.commit()
+        created_order = await order_repository.create(controller_session, order_data, total_price)
+        await controller_session.commit()
 
         # Делаем запрос к API
         response = client.get(f"/orders/{created_order.id}")
@@ -113,7 +113,7 @@ class TestOrderController:
     async def test_get_all_orders(
         self,
         client: TestClient,
-        session,
+        controller_session,
         order_repository: OrderRepository,
         test_user: User,
         test_address: Address,
@@ -133,8 +133,8 @@ class TestOrderController:
                 delivery_address_id=test_address.id,
                 items=order_items,
             )
-            await order_repository.create(session, order_data, total_price)
-        await session.commit()
+            await order_repository.create(controller_session, order_data, total_price)
+        await controller_session.commit()
 
         response = client.get("/orders")
 
@@ -165,6 +165,10 @@ class TestOrderController:
         }
 
         response = client.post("/orders", json=order_data)
+        
+        if response.status_code != HTTP_201_CREATED:
+            print(f"Response status: {response.status_code}")
+            print(f"Response body: {response.text}")
 
         assert response.status_code == HTTP_201_CREATED
         data = response.json()
@@ -180,7 +184,7 @@ class TestOrderController:
     async def test_create_order_insufficient_stock(
         self,
         client: TestClient,
-        session,
+        controller_session,
         product_repository: ProductRepository,
         test_user: User,
         test_address: Address,
@@ -192,8 +196,8 @@ class TestOrderController:
             price=100.0,
             stock_quantity=5,  # Доступно только 5
         )
-        product = await product_repository.create(session, product_data)
-        await session.commit()
+        product = await product_repository.create(controller_session, product_data)
+        await controller_session.commit()
 
         order_data = {
             "user_id": test_user.id,
@@ -213,7 +217,7 @@ class TestOrderController:
     async def test_update_order(
         self,
         client: TestClient,
-        session,
+        controller_session,
         order_repository: OrderRepository,
         test_user: User,
         test_address: Address,
@@ -234,8 +238,8 @@ class TestOrderController:
             status="pending",
         )
 
-        created_order = await order_repository.create(session, order_data, total_price)
-        await session.commit()
+        created_order = await order_repository.create(controller_session, order_data, total_price)
+        await controller_session.commit()
 
         # Обновляем статус заказа
         update_data = {
@@ -262,7 +266,7 @@ class TestOrderController:
     async def test_delete_order(
         self,
         client: TestClient,
-        session,
+        controller_session,
         order_repository: OrderRepository,
         test_user: User,
         test_address: Address,
@@ -282,8 +286,8 @@ class TestOrderController:
             items=order_items,
         )
 
-        created_order = await order_repository.create(session, order_data, total_price)
-        await session.commit()
+        created_order = await order_repository.create(controller_session, order_data, total_price)
+        await controller_session.commit()
 
         # Удаляем заказ
         response = client.delete(f"/orders/{created_order.id}")
@@ -305,7 +309,7 @@ class TestOrderController:
     async def test_get_orders_with_filters(
         self,
         client: TestClient,
-        session,
+        controller_session,
         order_repository: OrderRepository,
         test_user: User,
         test_address: Address,
@@ -330,9 +334,9 @@ class TestOrderController:
             status="completed",
         )
 
-        await order_repository.create(session, order1_data, total_price)
-        await order_repository.create(session, order2_data, total_price)
-        await session.commit()
+        await order_repository.create(controller_session, order1_data, total_price)
+        await order_repository.create(controller_session, order2_data, total_price)
+        await controller_session.commit()
 
         # Фильтр по статусу
         response = client.get("/orders?status=pending")

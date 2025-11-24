@@ -100,14 +100,14 @@ class ProductController(Controller):
         self,
         product_service: ProductService,
         db_session: AsyncSession,
-        product_data: ProductCreate,
+        data: ProductCreate,
     ) -> ProductResponse:
         """
         Создать новый продукт.
         Args:
             product_service: Сервис для работы с продуктами
             db_session: Сессия базы данных
-            product_data: Данные для создания продукта
+            data: Данные для создания продукта
             
         Returns:
             ProductResponse: Созданный продукт
@@ -116,7 +116,7 @@ class ProductController(Controller):
             HTTPException: Если данные невалидны
         """
         try:
-            product = await product_service.create(db_session, product_data)
+            product = await product_service.create(db_session, data)
             return ProductResponse.model_validate(product)
         except ValueError as e:
             from litestar.exceptions import HTTPException
@@ -127,7 +127,7 @@ class ProductController(Controller):
         self,
         product_service: ProductService,
         db_session: AsyncSession,
-        product_data: ProductUpdate,
+        data: ProductUpdate,
         product_id: int = Parameter(gt=0, description="ID продукта"),
     ) -> ProductResponse:
         """
@@ -136,7 +136,7 @@ class ProductController(Controller):
             product_service: Сервис для работы с продуктами
             db_session: Сессия базы данных
             product_id: ID продукта (int)
-            product_data: Данные для обновления
+            data: Данные для обновления
             
         Returns:
             ProductResponse: Обновленный продукт
@@ -146,7 +146,7 @@ class ProductController(Controller):
             HTTPException: Если данные невалидны
         """
         try:
-            product = await product_service.update(db_session, product_id, product_data)
+            product = await product_service.update(db_session, product_id, data)
             return ProductResponse.model_validate(product)
         except ValueError as e:
             error_message = str(e)

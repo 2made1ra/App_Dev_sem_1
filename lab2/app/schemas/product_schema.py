@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProductCreate(BaseModel):
@@ -31,8 +31,7 @@ class ProductResponse(BaseModel):
     created_at: datetime = Field(..., description="Дата и время создания")
     updated_at: datetime | None = Field(None, description="Дата и время последнего обновления")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProductListResponse(BaseModel):

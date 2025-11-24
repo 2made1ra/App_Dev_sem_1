@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete, func
+from sqlalchemy import select, func
 
 from app.models import User
 from app.schemas.user_schema import UserCreate, UserUpdate
@@ -91,7 +91,7 @@ class UserRepository:
         user_data: UserUpdate
     ) -> User:
         """
-        Обновить пользователя.
+        Обновить пользователя через ORM.
         
         Args:
             session: Асинхронная сессия базы данных
@@ -104,39 +104,30 @@ class UserRepository:
         Raises:
             ValueError: Если пользователь не найден
         """
+        # Получаем объект пользователя через ORM
+        user = await self.get_by_id(session, user_id)
+        
+        if not user:
+            raise ValueError(f"User with ID {user_id} not found")
+        
+        # Обновляем атрибуты объекта через ORM
         update_data = {
             k: v for k, v in user_data.model_dump(exclude_unset=True).items()
             if v is not None
         }
         
-        if not update_data:
-            user = await self.get_by_id(session, user_id)
-            if not user:
-                raise ValueError(f"User with ID {user_id} not found")
-            return user
-        
-        stmt = (
-            update(User)
-            .where(User.id == user_id)
-            .values(**update_data)
-            .returning(User)
-        )
-        
-        result = await session.execute(stmt)
-        updated_user = result.scalar_one_or_none()
-        
-        if not updated_user:
-            raise ValueError(f"User with ID {user_id} not found")
+        for key, value in update_data.items():
+            setattr(user, key, value)
         
         await session.flush()
-        await session.refresh(updated_user)
-        return updated_user
+        await session.refresh(user)
+        return user
 
     async def delete(
         self, session: AsyncSession, user_id: int
     ) -> None:
         """
-        Удалить пользователя.
+        Удалить пользователя через ORM.
         
         Args:
             session: Асинхронная сессия базы данных
@@ -145,11 +136,14 @@ class UserRepository:
         Raises:
             ValueError: Если пользователь не найден
         """
-        stmt = delete(User).where(User.id == user_id)
-        result = await session.execute(stmt)
+        user = await self.get_by_id(session, user_id)
         
-        if result.rowcount == 0:
+        if not user:
             raise ValueError(f"User with ID {user_id} not found")
+        
+        # Используем ORM delete
+        await session.delete(user)
+        await session.flush()
 
     async def count(
         self, session: AsyncSession, **kwargs

@@ -138,12 +138,20 @@ class TestUserService:
         # Мокаем существующего пользователя с таким username
         existing_user = Mock(spec=User)
         existing_user.username = "existing_user"
+        existing_user.email = "different@example.com"
+
+        call_count = [0]  # Используем список для изменяемого счетчика
 
         async def mock_execute(stmt):
             result_mock = Mock()
+            call_count[0] += 1
             # Первый вызов - проверка email (не найден)
             # Второй вызов - проверка username (найден)
-            if "username" in str(stmt):
+            if call_count[0] == 1:
+                # Проверка email
+                result_mock.scalar_one_or_none.return_value = None
+            elif call_count[0] == 2:
+                # Проверка username
                 result_mock.scalar_one_or_none.return_value = existing_user
             else:
                 result_mock.scalar_one_or_none.return_value = None

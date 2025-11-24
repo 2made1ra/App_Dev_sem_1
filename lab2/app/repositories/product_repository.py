@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete, func
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from app.models import Product
@@ -93,7 +93,7 @@ class ProductRepository:
         product_data: ProductUpdate
     ) -> Product:
         """
-        Обновить продукт.
+        Обновить продукт через ORM.
         
         Args:
             session: Асинхронная сессия базы данных
@@ -106,39 +106,30 @@ class ProductRepository:
         Raises:
             ValueError: Если продукт не найден
         """
+        # Получаем объект продукта через ORM
+        product = await self.get_by_id(session, product_id)
+        
+        if not product:
+            raise ValueError(f"Product with ID {product_id} not found")
+        
+        # Обновляем атрибуты объекта через ORM
         update_data = {
             k: v for k, v in product_data.model_dump(exclude_unset=True).items()
             if v is not None
         }
         
-        if not update_data:
-            product = await self.get_by_id(session, product_id)
-            if not product:
-                raise ValueError(f"Product with ID {product_id} not found")
-            return product
-        
-        stmt = (
-            update(Product)
-            .where(Product.id == product_id)
-            .values(**update_data)
-            .returning(Product)
-        )
-        
-        result = await session.execute(stmt)
-        updated_product = result.scalar_one_or_none()
-        
-        if not updated_product:
-            raise ValueError(f"Product with ID {product_id} not found")
+        for key, value in update_data.items():
+            setattr(product, key, value)
         
         await session.flush()
-        await session.refresh(updated_product)
-        return updated_product
+        await session.refresh(product)
+        return product
 
     async def delete(
         self, session: AsyncSession, product_id: int
     ) -> None:
         """
-        Удалить продукт.
+        Удалить продукт через ORM.
         
         Args:
             session: Асинхронная сессия базы данных
@@ -147,11 +138,14 @@ class ProductRepository:
         Raises:
             ValueError: Если продукт не найден
         """
-        stmt = delete(Product).where(Product.id == product_id)
-        result = await session.execute(stmt)
+        product = await self.get_by_id(session, product_id)
         
-        if result.rowcount == 0:
+        if not product:
             raise ValueError(f"Product with ID {product_id} not found")
+        
+        # Используем ORM delete
+        await session.delete(product)
+        await session.flush()
 
     async def count(
         self, session: AsyncSession, **kwargs

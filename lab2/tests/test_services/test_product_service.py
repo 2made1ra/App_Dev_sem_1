@@ -81,9 +81,13 @@ class TestProductService:
         self, product_service: ProductService, mock_session, mock_product_repository
     ):
         """Тест создания продукта с невалидной ценой (<= 0)."""
-        product_data = ProductCreate(
+        # Pydantic валидирует на уровне схемы, поэтому используем model_construct для обхода валидации
+        # или тестируем через сервис с уже валидной схемой, но с невалидным значением после создания
+        # В данном случае валидация происходит на уровне Pydantic, поэтому этот тест не нужен
+        # Вместо этого тестируем валидацию в сервисе после получения данных
+        product_data = ProductCreate.model_construct(
             name="Invalid Product",
-            price=0.0,  # Невалидная цена
+            price=0.0,  # Невалидная цена (обходим Pydantic валидацию)
             stock_quantity=10,
         )
 
@@ -97,10 +101,11 @@ class TestProductService:
         self, product_service: ProductService, mock_session, mock_product_repository
     ):
         """Тест создания продукта с отрицательным количеством на складе."""
-        product_data = ProductCreate(
+        # Используем model_construct для обхода Pydantic валидации
+        product_data = ProductCreate.model_construct(
             name="Invalid Product",
             price=10.0,
-            stock_quantity=-1,  # Невалидное количество
+            stock_quantity=-1,  # Невалидное количество (обходим Pydantic валидацию)
         )
 
         with pytest.raises(ValueError, match="Stock quantity cannot be negative"):
@@ -159,7 +164,8 @@ class TestProductService:
         existing_product = Mock(spec=Product)
         existing_product.id = 1
 
-        update_data = ProductUpdate(price=0.0)  # Невалидная цена
+        # Используем model_construct для обхода Pydantic валидации
+        update_data = ProductUpdate.model_construct(price=0.0)  # Невалидная цена
 
         mock_product_repository.get_by_id.return_value = existing_product
 
@@ -176,7 +182,8 @@ class TestProductService:
         existing_product = Mock(spec=Product)
         existing_product.id = 1
 
-        update_data = ProductUpdate(stock_quantity=-1)  # Невалидное количество
+        # Используем model_construct для обхода Pydantic валидации
+        update_data = ProductUpdate.model_construct(stock_quantity=-1)  # Невалидное количество
 
         mock_product_repository.get_by_id.return_value = existing_product
 

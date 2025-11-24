@@ -88,16 +88,28 @@ class TestOrderService:
         mock_order.status = "pending"
         mock_order.items = [mock_item1, mock_item2]
 
-        # Настраиваем моки для session.execute (для проверки User и Address)
+        # Настраиваем моки для session.execute (для проверки User, Address и Order)
+        execute_call_count = 0
+        
         async def mock_execute(stmt):
+            nonlocal execute_call_count
             result_mock = Mock()
+            stmt_str = str(stmt).lower()
+            execute_call_count += 1
+            
             # Определяем, что возвращать на основе запроса
-            if "users" in str(stmt).lower() or "User" in str(stmt):
-                result_mock.scalar_one_or_none.return_value = mock_user
-            elif "addresses" in str(stmt).lower() or "Address" in str(stmt):
-                result_mock.scalar_one_or_none.return_value = mock_address
+            # Порядок важен: сначала проверяем Order (может содержать "user" в "delivery_address")
+            if "orders" in stmt_str and execute_call_count > 2:
+                # Для запроса Order (после проверки User и Address) возвращаем через scalar_one
+                result_mock.scalar_one = Mock(return_value=mock_order)
+            elif "users" in stmt_str or (execute_call_count == 1 and "user" in stmt_str and "order" not in stmt_str):
+                # Первый вызов - проверка User
+                result_mock.scalar_one_or_none = Mock(return_value=mock_user)
+            elif "addresses" in stmt_str or (execute_call_count == 2 and "address" in stmt_str and "order" not in stmt_str):
+                # Второй вызов - проверка Address
+                result_mock.scalar_one_or_none = Mock(return_value=mock_address)
             else:
-                result_mock.scalar_one_or_none.return_value = None
+                result_mock.scalar_one_or_none = Mock(return_value=None)
             return result_mock
 
         mock_session.execute = AsyncMock(side_effect=mock_execute)

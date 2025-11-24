@@ -22,7 +22,7 @@ class TestProductRepository:
         )
 
         product = await product_repository.create(session, product_data)
-        await session.commit()
+        await session.flush()  # Используем flush вместо commit для изоляции
 
         assert product.id is not None
         assert product.name == "Test Product"
@@ -42,7 +42,7 @@ class TestProductRepository:
             stock_quantity=5,
         )
         created_product = await product_repository.create(session, product_data)
-        await session.commit()
+        await session.flush()  # Используем flush вместо commit для изоляции
 
         found_product = await product_repository.get_by_id(
             session, created_product.id
@@ -74,7 +74,7 @@ class TestProductRepository:
             stock_quantity=20,
         )
         created_product = await product_repository.create(session, product_data)
-        await session.commit()
+        await session.flush()  # Используем flush вместо commit для изоляции
 
         update_data = ProductUpdate(
             name="Updated Product",
@@ -83,7 +83,7 @@ class TestProductRepository:
         updated_product = await product_repository.update(
             session, created_product.id, update_data
         )
-        await session.commit()
+        await session.flush()  # Используем flush вместо commit для изоляции
 
         assert updated_product.id == created_product.id
         assert updated_product.name == "Updated Product"
@@ -113,10 +113,10 @@ class TestProductRepository:
             stock_quantity=5,
         )
         created_product = await product_repository.create(session, product_data)
-        await session.commit()
+        await session.flush()  # Используем flush вместо commit для изоляции
 
         await product_repository.delete(session, created_product.id)
-        await session.commit()
+        await session.flush()  # Используем flush вместо commit для изоляции
 
         deleted_product = await product_repository.get_by_id(
             session, created_product.id
@@ -147,7 +147,7 @@ class TestProductRepository:
                 stock_quantity=i + 1,
             )
             await product_repository.create(session, product_data)
-        await session.commit()
+        await session.flush()  # Используем flush вместо commit для изоляции
 
         products = await product_repository.get_by_filter(session, count=10, page=1)
         total = await product_repository.count(session)
@@ -168,7 +168,7 @@ class TestProductRepository:
                 stock_quantity=10,
             )
             await product_repository.create(session, product_data)
-        await session.commit()
+        await session.flush()  # Используем flush вместо commit для изоляции
 
         # Первая страница (5 записей)
         page1 = await product_repository.get_by_filter(session, count=5, page=1)
@@ -202,7 +202,7 @@ class TestProductRepository:
         await product_repository.create(session, product1)
         await product_repository.create(session, product2)
         await product_repository.create(session, product3)
-        await session.commit()
+        await session.flush()  # Используем flush вместо commit для изоляции
 
         # Фильтр по названию
         products = await product_repository.get_by_filter(

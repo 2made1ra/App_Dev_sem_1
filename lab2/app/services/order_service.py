@@ -127,7 +127,16 @@ class OrderService:
 
         await session.commit()
         await session.refresh(order)
-        return order
+        
+        # Загружаем items для возврата (нужно для Pydantic валидации)
+        from sqlalchemy.orm import selectinload
+        stmt = (
+            select(Order)
+            .where(Order.id == order.id)
+            .options(selectinload(Order.items))
+        )
+        result = await session.execute(stmt)
+        return result.scalar_one()
 
     async def update(
         self,

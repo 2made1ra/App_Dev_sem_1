@@ -12,7 +12,7 @@ class TestUserController:
 
     @pytest.mark.asyncio
     async def test_get_user_by_id(
-        self, client: TestClient, session, user_repository: UserRepository
+        self, client: TestClient, controller_session, user_repository: UserRepository
     ):
         """Тест GET /users/{user_id} - получение пользователя по ID."""
         # Создаем пользователя в БД
@@ -21,8 +21,8 @@ class TestUserController:
             username="test_user",
             description="Test user",
         )
-        created_user = await user_repository.create(session, user_data)
-        await session.commit()
+        created_user = await user_repository.create(controller_session, user_data)
+        await controller_session.commit()
 
         # Делаем запрос к API
         response = client.get(f"/users/{created_user.id}")
@@ -44,7 +44,7 @@ class TestUserController:
 
     @pytest.mark.asyncio
     async def test_get_all_users(
-        self, client: TestClient, session, user_repository: UserRepository
+        self, client: TestClient, controller_session, user_repository: UserRepository
     ):
         """Тест GET /users - получение списка пользователей."""
         # Создаем несколько пользователей
@@ -53,8 +53,8 @@ class TestUserController:
                 email=f"user{i}@example.com",
                 username=f"user_{i}",
             )
-            await user_repository.create(session, user_data)
-        await session.commit()
+            await user_repository.create(controller_session, user_data)
+        await controller_session.commit()
 
         response = client.get("/users")
 
@@ -67,7 +67,7 @@ class TestUserController:
 
     @pytest.mark.asyncio
     async def test_get_all_users_with_pagination(
-        self, client: TestClient, session, user_repository: UserRepository
+        self, client: TestClient, controller_session, user_repository: UserRepository
     ):
         """Тест GET /users - пагинация."""
         # Создаем 5 пользователей
@@ -76,8 +76,8 @@ class TestUserController:
                 email=f"paginated{i}@example.com",
                 username=f"paginated_{i}",
             )
-            await user_repository.create(session, user_data)
-        await session.commit()
+            await user_repository.create(controller_session, user_data)
+        await controller_session.commit()
 
         # Первая страница
         response = client.get("/users?count=2&page=1")
@@ -112,7 +112,7 @@ class TestUserController:
 
     @pytest.mark.asyncio
     async def test_create_user_duplicate_email(
-        self, client: TestClient, session, user_repository: UserRepository
+        self, client: TestClient, controller_session, user_repository: UserRepository
     ):
         """Тест POST /users - создание пользователя с дублирующимся email."""
         # Создаем пользователя
@@ -120,8 +120,8 @@ class TestUserController:
             email="duplicate@example.com",
             username="first_user",
         )
-        await user_repository.create(session, user_data)
-        await session.commit()
+        await user_repository.create(controller_session, user_data)
+        await controller_session.commit()
 
         # Пытаемся создать еще одного с тем же email
         new_user_data = {
@@ -137,7 +137,7 @@ class TestUserController:
 
     @pytest.mark.asyncio
     async def test_update_user(
-        self, client: TestClient, session, user_repository: UserRepository
+        self, client: TestClient, controller_session, user_repository: UserRepository
     ):
         """Тест PUT /users/{user_id} - обновление пользователя."""
         # Создаем пользователя
@@ -146,8 +146,8 @@ class TestUserController:
             username="update_user",
             description="Original description",
         )
-        created_user = await user_repository.create(session, user_data)
-        await session.commit()
+        created_user = await user_repository.create(controller_session, user_data)
+        await controller_session.commit()
 
         # Обновляем пользователя
         update_data = {
@@ -173,7 +173,7 @@ class TestUserController:
 
     @pytest.mark.asyncio
     async def test_delete_user(
-        self, client: TestClient, session, user_repository: UserRepository
+        self, client: TestClient, controller_session, user_repository: UserRepository
     ):
         """Тест DELETE /users/{user_id} - удаление пользователя."""
         # Создаем пользователя
@@ -181,8 +181,8 @@ class TestUserController:
             email="delete@example.com",
             username="delete_user",
         )
-        created_user = await user_repository.create(session, user_data)
-        await session.commit()
+        created_user = await user_repository.create(controller_session, user_data)
+        await controller_session.commit()
 
         # Удаляем пользователя
         response = client.delete(f"/users/{created_user.id}")

@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class OrderItemCreate(BaseModel):
@@ -18,8 +18,7 @@ class OrderItemResponse(BaseModel):
     price_at_order: float = Field(..., description="Цена на момент заказа")
     created_at: datetime = Field(..., description="Дата и время создания")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrderCreate(BaseModel):
@@ -50,8 +49,7 @@ class OrderResponse(BaseModel):
     updated_at: datetime | None = Field(None, description="Дата и время последнего обновления")
     items: list[OrderItemResponse] = Field(..., description="Список товаров в заказе")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrderListResponse(BaseModel):

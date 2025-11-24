@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserCreate(BaseModel):
@@ -28,8 +28,7 @@ class UserResponse(BaseModel):
     created_at: datetime = Field(..., description="Дата и время создания")
     updated_at: datetime | None = Field(None, description="Дата и время последнего обновления")
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserListResponse(BaseModel):
