@@ -1,7 +1,7 @@
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Order, Product, User, Address
+from app.models import Address, Order, Product, User
 from app.repositories.order_repository import OrderRepository
 from app.repositories.product_repository import ProductRepository
 from app.schemas.order_schema import OrderCreate, OrderUpdate
@@ -24,26 +24,20 @@ class OrderService:
         self.order_repository = order_repository
         self.product_repository = product_repository
 
-    async def get_by_id(
-        self, session: AsyncSession, order_id: int
-    ) -> Order | None:
+    async def get_by_id(self, session: AsyncSession, order_id: int) -> Order | None:
         """
         Получить заказ по ID.
         Args:
             session: Асинхронная сессия базы данных
             order_id: ID заказа (int)
-            
+
         Returns:
             Order объект или None, если не найден
         """
         return await self.order_repository.get_by_id(session, order_id)
 
     async def get_by_filter(
-        self,
-        session: AsyncSession,
-        count: int,
-        page: int,
-        **kwargs
+        self, session: AsyncSession, count: int, page: int, **kwargs
     ) -> list[Order]:
         """
         Получить список заказов с пагинацией и фильтрацией.
@@ -52,26 +46,22 @@ class OrderService:
             count: Количество записей на странице
             page: Номер страницы (начинается с 1)
             **kwargs: Фильтры (user_id, status)
-            
+
         Returns:
             Список заказов
         """
-        return await self.order_repository.get_by_filter(
-            session, count, page, **kwargs
-        )
+        return await self.order_repository.get_by_filter(session, count, page, **kwargs)
 
-    async def create(
-        self, session: AsyncSession, order_data: OrderCreate
-    ) -> Order:
+    async def create(self, session: AsyncSession, order_data: OrderCreate) -> Order:
         """
         Создать новый заказ с проверкой наличия товаров и расчетом общей стоимости.
         Args:
             session: Асинхронная сессия базы данных
             order_data: Данные для создания заказа
-            
+
         Returns:
             Созданный объект Order
-            
+
         Raises:
             ValueError: Если пользователь, адрес или продукт не найдены, или недостаточно товара на складе
         """
@@ -83,11 +73,15 @@ class OrderService:
             raise ValueError(f"User with ID {order_data.user_id} not found")
 
         # Проверка существования адреса доставки
-        address_stmt = select(Address).where(Address.id == order_data.delivery_address_id)
+        address_stmt = select(Address).where(
+            Address.id == order_data.delivery_address_id
+        )
         address_result = await session.execute(address_stmt)
         address = address_result.scalar_one_or_none()
         if not address:
-            raise ValueError(f"Address with ID {order_data.delivery_address_id} not found")
+            raise ValueError(
+                f"Address with ID {order_data.delivery_address_id} not found"
+            )
 
         # Проверка, что адрес принадлежит пользователю
         if address.user_id != order_data.user_id:
@@ -99,7 +93,9 @@ class OrderService:
 
         for item_data in order_data.items:
             # Получаем продукт
-            product = await self.product_repository.get_by_id(session, item_data.product_id)
+            product = await self.product_repository.get_by_id(
+                session, item_data.product_id
+            )
             if not product:
                 raise ValueError(f"Product with ID {item_data.product_id} not found")
 
@@ -127,22 +123,18 @@ class OrderService:
 
         await session.commit()
         await session.refresh(order)
-        
+
         # Загружаем items для возврата (нужно для Pydantic валидации)
         from sqlalchemy.orm import selectinload
+
         stmt = (
-            select(Order)
-            .where(Order.id == order.id)
-            .options(selectinload(Order.items))
+            select(Order).where(Order.id == order.id).options(selectinload(Order.items))
         )
         result = await session.execute(stmt)
         return result.scalar_one()
 
     async def update(
-        self,
-        session: AsyncSession,
-        order_id: int,
-        order_data: OrderUpdate
+        self, session: AsyncSession, order_id: int, order_data: OrderUpdate
     ) -> Order:
         """
         Обновить заказ (в основном статус).
@@ -150,10 +142,10 @@ class OrderService:
             session: Асинхронная сессия базы данных
             order_id: ID заказа (int)
             order_data: Данные для обновления
-            
+
         Returns:
             Обновленный объект Order
-            
+
         Raises:
             ValueError: Если заказ не найден
         """
@@ -165,32 +157,27 @@ class OrderService:
         await session.commit()
         return order
 
-    async def delete(
-        self, session: AsyncSession, order_id: int
-    ) -> None:
+    async def delete(self, session: AsyncSession, order_id: int) -> None:
         """
         Удалить заказ.
         Args:
             session: Асинхронная сессия базы данных
             order_id: ID заказа (int)
-            
+
         Raises:
             ValueError: Если заказ не найден
         """
         await self.order_repository.delete(session, order_id)
         await session.commit()
 
-    async def count(
-        self, session: AsyncSession, **kwargs
-    ) -> int:
+    async def count(self, session: AsyncSession, **kwargs) -> int:
         """
         Получить общее количество заказов с учетом фильтров.
         Args:
             session: Асинхронная сессия базы данных
             **kwargs: Фильтры (user_id, status)
-            
+
         Returns:
             Количество заказов
         """
         return await self.order_repository.count(session, **kwargs)
-

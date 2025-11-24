@@ -1,13 +1,13 @@
-from litestar import Controller, get, post, put, delete
+from litestar import Controller, delete, get, post, put
 from litestar.params import Parameter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import NotFoundException
 from app.schemas.product_schema import (
     ProductCreate,
-    ProductUpdate,
-    ProductResponse,
     ProductListResponse,
+    ProductResponse,
+    ProductUpdate,
 )
 from app.services.product_service import ProductService
 
@@ -30,18 +30,16 @@ class ProductController(Controller):
             product_service: Сервис для работы с продуктами
             db_session: Сессия базы данных
             product_id: ID продукта (int)
-            
+
         Returns:
             ProductResponse: Данные продукта
-            
+
         Raises:
             NotFoundException: Если продукт не найден
         """
         product = await product_service.get_by_id(db_session, product_id)
         if not product:
-            raise NotFoundException(
-                detail=f"Product with ID {product_id} not found"
-            )
+            raise NotFoundException(detail=f"Product with ID {product_id} not found")
         return ProductResponse.model_validate(product)
 
     @get()
@@ -75,7 +73,7 @@ class ProductController(Controller):
             name: Фильтр по названию продукта
             min_price: Минимальная цена
             max_price: Максимальная цена
-            
+
         Returns:
             ProductListResponse: Список продуктов и общее количество
         """
@@ -87,9 +85,11 @@ class ProductController(Controller):
         if max_price is not None:
             filters["max_price"] = max_price
 
-        products = await product_service.get_by_filter(db_session, count, page, **filters)
+        products = await product_service.get_by_filter(
+            db_session, count, page, **filters
+        )
         total = await product_service.count(db_session, **filters)
-        
+
         return ProductListResponse(
             products=[ProductResponse.model_validate(product) for product in products],
             total=total,
@@ -108,10 +108,10 @@ class ProductController(Controller):
             product_service: Сервис для работы с продуктами
             db_session: Сессия базы данных
             data: Данные для создания продукта
-            
+
         Returns:
             ProductResponse: Созданный продукт
-            
+
         Raises:
             HTTPException: Если данные невалидны
         """
@@ -120,6 +120,7 @@ class ProductController(Controller):
             return ProductResponse.model_validate(product)
         except ValueError as e:
             from litestar.exceptions import HTTPException
+
             raise HTTPException(status_code=400, detail=str(e))
 
     @put("/{product_id:int}")
@@ -137,10 +138,10 @@ class ProductController(Controller):
             db_session: Сессия базы данных
             product_id: ID продукта (int)
             data: Данные для обновления
-            
+
         Returns:
             ProductResponse: Обновленный продукт
-            
+
         Raises:
             NotFoundException: Если продукт не найден
             HTTPException: Если данные невалидны
@@ -153,6 +154,7 @@ class ProductController(Controller):
             if "not found" in error_message.lower():
                 raise NotFoundException(detail=error_message)
             from litestar.exceptions import HTTPException
+
             raise HTTPException(status_code=400, detail=error_message)
 
     @delete("/{product_id:int}")
@@ -168,7 +170,7 @@ class ProductController(Controller):
             product_service: Сервис для работы с продуктами
             db_session: Сессия базы данных
             product_id: ID продукта (int)
-            
+
         Raises:
             NotFoundException: Если продукт не найден
         """
@@ -176,4 +178,3 @@ class ProductController(Controller):
             await product_service.delete(db_session, product_id)
         except ValueError as e:
             raise NotFoundException(detail=str(e))
-

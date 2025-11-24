@@ -19,9 +19,41 @@ dependencies = [
     "aiosqlite>=0.19.0",
     "polyfactory>=2.0.0",
     "greenlet>=3.0.0",
+    "pre-commit>=3.0.0",
+    "pylint>=3.0.0",
+    "black>=24.0.0",
+    "isort>=5.13.0",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "--verbose --color=yes"
+
+[tool.isort]
+profile = "black"
+known_first_party = ["app"]
+skip = []
+
+[tool.black]
+line-length = 88
+target-version = ['py313']
+exclude = '''
+/(
+  \.git
+| \.hg
+| \.mypy_cache
+| \.tox
+| \.venv
+| _build
+| buck-out
+| build
+| docker
+| config
+| temp
+| __pycache__
+| htmlcov
+| tests
+| migrations
+)/
+'''

@@ -1,9 +1,7 @@
-from sqlalchemy import select
 from database import get_session
+from models import Address, User
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from models import User, Address
-
-
 
 if __name__ == "__main__":
     with get_session() as session:
@@ -13,4 +11,6 @@ if __name__ == "__main__":
         for user in result:
             print(f"Пользователь: {user.username} ({user.email})")
             for addr in user.addresses:
-                print(f"  - {addr.street}, {addr.city}, {addr.country} (Primary: {addr.is_primary})")
+                print(
+                    f"  - {addr.street}, {addr.city}, {addr.country} (Primary: {addr.is_primary})"
+                )

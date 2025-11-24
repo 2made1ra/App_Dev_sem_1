@@ -1,16 +1,16 @@
-from litestar import Controller, get, post, put, delete
+from litestar import Controller, delete, get, post, put
 from litestar.params import Parameter
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from sqlalchemy import select
 
 from app.exceptions import NotFoundException
 from app.models import Order
 from app.schemas.order_schema import (
     OrderCreate,
-    OrderUpdate,
-    OrderResponse,
     OrderListResponse,
+    OrderResponse,
+    OrderUpdate,
 )
 from app.services.order_service import OrderService
 
@@ -33,23 +33,19 @@ class OrderController(Controller):
             order_service: Сервис для работы с заказами
             db_session: Сессия базы данных
             order_id: ID заказа (int)
-            
+
         Returns:
             OrderResponse: Данные заказа с элементами
-            
+
         Raises:
             NotFoundException: Если заказ не найден
         """
         order = await order_service.get_by_id(db_session, order_id)
         if not order:
-            raise NotFoundException(
-                detail=f"Order with ID {order_id} not found"
-            )
+            raise NotFoundException(detail=f"Order with ID {order_id} not found")
         # Убеждаемся, что items загружены перед валидацией Pydantic
         stmt = (
-            select(Order)
-            .where(Order.id == order.id)
-            .options(selectinload(Order.items))
+            select(Order).where(Order.id == order.id).options(selectinload(Order.items))
         )
         result = await db_session.execute(stmt)
         order_with_items = result.scalar_one()
@@ -82,7 +78,7 @@ class OrderController(Controller):
             page: Номер страницы (начинается с 1)
             user_id: Фильтр по ID пользователя
             status: Фильтр по статусу заказа
-            
+
         Returns:
             OrderListResponse: Список заказов и общее количество
         """
@@ -94,7 +90,7 @@ class OrderController(Controller):
 
         orders = await order_service.get_by_filter(db_session, count, page, **filters)
         total = await order_service.count(db_session, **filters)
-        
+
         return OrderListResponse(
             orders=[OrderResponse.model_validate(order) for order in orders],
             total=total,
@@ -113,10 +109,10 @@ class OrderController(Controller):
             order_service: Сервис для работы с заказами
             db_session: Сессия базы данных
             data: Данные для создания заказа
-            
+
         Returns:
             OrderResponse: Созданный заказ
-            
+
         Raises:
             HTTPException: Если данные невалидны или недостаточно товара на складе
         """
@@ -133,6 +129,7 @@ class OrderController(Controller):
             return OrderResponse.model_validate(order_with_items)
         except ValueError as e:
             from litestar.exceptions import HTTPException
+
             raise HTTPException(status_code=400, detail=str(e))
 
     @put("/{order_id:int}")
@@ -150,10 +147,10 @@ class OrderController(Controller):
             db_session: Сессия базы данных
             order_id: ID заказа (int)
             data: Данные для обновления
-            
+
         Returns:
             OrderResponse: Обновленный заказ
-            
+
         Raises:
             NotFoundException: Если заказ не найден
             HTTPException: Если данные невалидны
@@ -174,6 +171,7 @@ class OrderController(Controller):
             if "not found" in error_message.lower():
                 raise NotFoundException(detail=error_message)
             from litestar.exceptions import HTTPException
+
             raise HTTPException(status_code=400, detail=error_message)
 
     @delete("/{order_id:int}")
@@ -189,7 +187,7 @@ class OrderController(Controller):
             order_service: Сервис для работы с заказами
             db_session: Сессия базы данных
             order_id: ID заказа (int)
-            
+
         Raises:
             NotFoundException: Если заказ не найден
         """
@@ -197,4 +195,3 @@ class OrderController(Controller):
             await order_service.delete(db_session, order_id)
         except ValueError as e:
             raise NotFoundException(detail=str(e))
-

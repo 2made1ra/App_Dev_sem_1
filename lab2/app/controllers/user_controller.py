@@ -1,4 +1,4 @@
-from litestar import Controller, get, post, put, delete
+from litestar import Controller, delete, get, post, put
 from litestar.di import Provide
 from litestar.params import Parameter
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,9 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.exceptions import NotFoundException
 from app.schemas.user_schema import (
     UserCreate,
-    UserUpdate,
-    UserResponse,
     UserListResponse,
+    UserResponse,
+    UserUpdate,
 )
 from app.services.user_service import UserService
 
@@ -23,10 +23,7 @@ class UserController(Controller):
         self,
         user_service: UserService,
         db_session: AsyncSession,
-        user_id: int = Parameter(
-            gt=0,
-            description="ID пользователя"
-        ),
+        user_id: int = Parameter(gt=0, description="ID пользователя"),
     ) -> UserResponse:
         """
         Получить пользователя по ID.
@@ -34,18 +31,16 @@ class UserController(Controller):
             user_service: Сервис для работы с пользователями
             db_session: Сессия базы данных
             user_id: ID пользователя (int)
-            
+
         Returns:
             UserResponse: Данные пользователя
-            
+
         Raises:
             NotFoundException: Если пользователь не найден
         """
         user = await user_service.get_by_id(db_session, user_id)
         if not user:
-            raise NotFoundException(
-                detail=f"User with ID {user_id} not found"
-            )
+            raise NotFoundException(detail=f"User with ID {user_id} not found")
         return UserResponse.model_validate(user)
 
     @get()
@@ -67,13 +62,13 @@ class UserController(Controller):
             db_session: Сессия базы данных
             count: Количество записей на странице (1-100)
             page: Номер страницы (начинается с 1)
-            
+
         Returns:
             UserListResponse: Список пользователей и общее количество (задание со звездочкой)
         """
         users = await user_service.get_by_filter(db_session, count, page)
         total = await user_service.count(db_session)
-        
+
         return UserListResponse(
             users=[UserResponse.model_validate(user) for user in users],
             total=total,
@@ -92,10 +87,10 @@ class UserController(Controller):
             user_service: Сервис для работы с пользователями
             db_session: Сессия базы данных
             data: Данные для создания пользователя
-            
+
         Returns:
             UserResponse: Созданный пользователь
-            
+
         Raises:
             HTTPException: Если email или username уже существуют
         """
@@ -104,6 +99,7 @@ class UserController(Controller):
             return UserResponse.model_validate(user)
         except ValueError as e:
             from litestar.exceptions import HTTPException
+
             raise HTTPException(status_code=400, detail=str(e))
 
     @put("/{user_id:int}")
@@ -121,10 +117,10 @@ class UserController(Controller):
             db_session: Сессия базы данных
             user_id: ID пользователя (int)
             data: Данные для обновления
-            
+
         Returns:
             UserResponse: Обновленный пользователь
-            
+
         Raises:
             NotFoundException: Если пользователь не найден
             HTTPException: Если email или username уже существуют
@@ -137,6 +133,7 @@ class UserController(Controller):
             if "not found" in error_message.lower():
                 raise NotFoundException(detail=error_message)
             from litestar.exceptions import HTTPException
+
             raise HTTPException(status_code=400, detail=error_message)
 
     @delete("/{user_id:int}")
@@ -152,7 +149,7 @@ class UserController(Controller):
             user_service: Сервис для работы с пользователями
             db_session: Сессия базы данных
             user_id: ID пользователя (int)
-            
+
         Raises:
             NotFoundException: Если пользователь не найден
         """
@@ -160,4 +157,3 @@ class UserController(Controller):
             await user_service.delete(db_session, user_id)
         except ValueError as e:
             raise NotFoundException(detail=str(e))
-

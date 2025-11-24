@@ -44,8 +44,10 @@ services:
     container_name: app_lab3
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin}@db:5432/${POSTGRES_DB:-lab_db2}
-      - HOST=0.0.0.0
-      - PORT=8000
+      - DB_HOST=${DB_HOST:-db}
+      - DB_PORT=${DB_PORT:-5432}
+      - HOST=${HOST:-0.0.0.0}
+      - PORT=${PORT:-8000}
     ports:
       - "8000:8000"
     volumes:
@@ -56,14 +58,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: >
-      sh -c "
-        . .venv/bin/activate &&
-        cd app &&
-        ../.venv/bin/alembic upgrade head &&
-        cd .. &&
-        python main.py
-      "
+    command: ["uv", "run", "python", "main.py"]
     restart: unless-stopped
 
 volumes:
