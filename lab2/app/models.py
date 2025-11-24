@@ -1,4 +1,3 @@
-from uuid import UUID, uuid4
 from datetime import datetime
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -28,9 +27,9 @@ class User(Base):
 class Address(Base):
     __tablename__ = 'addresses'
     
-    id: Mapped[UUID] = mapped_column(
+    id: Mapped[int] = mapped_column(
         primary_key=True,
-        default=uuid4,
+        autoincrement=True,
     )
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
     street: Mapped[str] = mapped_column(nullable=False)
@@ -48,9 +47,9 @@ class Address(Base):
 class Product(Base):
     __tablename__ = 'products'
     
-    id: Mapped[UUID] = mapped_column(
+    id: Mapped[int] = mapped_column(
         primary_key=True,
-        default=uuid4,
+        autoincrement=True,
     )
     name: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str] = mapped_column(nullable=True)
@@ -67,12 +66,12 @@ class OrderItem(Base):
     """Промежуточная таблица для связи Order и Product (many-to-many)."""
     __tablename__ = 'order_items'
     
-    id: Mapped[UUID] = mapped_column(
+    id: Mapped[int] = mapped_column(
         primary_key=True,
-        default=uuid4,
+        autoincrement=True,
     )
-    order_id: Mapped[UUID] = mapped_column(ForeignKey('orders.id'), nullable=False)
-    product_id: Mapped[UUID] = mapped_column(ForeignKey('products.id'), nullable=False)
+    order_id: Mapped[int] = mapped_column(ForeignKey('orders.id'), nullable=False)
+    product_id: Mapped[int] = mapped_column(ForeignKey('products.id'), nullable=False)
     quantity: Mapped[int] = mapped_column(nullable=False, default=1)
     price_at_order: Mapped[float] = mapped_column(nullable=False)  # Цена на момент заказа
     created_at: Mapped[datetime] = mapped_column(default=datetime.now)
@@ -85,12 +84,12 @@ class OrderItem(Base):
 class Order(Base):
     __tablename__ = 'orders'
     
-    id: Mapped[UUID] = mapped_column(
+    id: Mapped[int] = mapped_column(
         primary_key=True,
-        default=uuid4,
+        autoincrement=True,
     )
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
-    delivery_address_id: Mapped[UUID] = mapped_column(ForeignKey('addresses.id'), nullable=False)
+    delivery_address_id: Mapped[int] = mapped_column(ForeignKey('addresses.id'), nullable=False)
     
     total_price: Mapped[float] = mapped_column(nullable=False)
     status: Mapped[str] = mapped_column(nullable=False, default="pending")
