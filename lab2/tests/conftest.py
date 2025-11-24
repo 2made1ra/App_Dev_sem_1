@@ -71,7 +71,7 @@ async def session(engine, tables):
 
 @pytest.fixture
 async def controller_session(engine, tables):
-    """Создает сессию БД для тестов контроллеров с очисткой данных."""
+    """Создает сессию БД для тестов контроллеров с изоляцией через savepoint."""
     global _test_session_factory, _current_test_session
     if _test_session_factory is None:
         _test_session_factory = async_sessionmaker(
@@ -79,7 +79,7 @@ async def controller_session(engine, tables):
         )
     
     async with _test_session_factory() as session:
-        # Очищаем данные перед тестом
+        # Очищаем данные перед тестом для полной изоляции
         async with session.begin():
             from sqlalchemy import text
             await session.execute(text("DELETE FROM order_items"))
@@ -88,24 +88,33 @@ async def controller_session(engine, tables):
             await session.execute(text("DELETE FROM products"))
             await session.execute(text("DELETE FROM users"))
         
-        # Сохраняем сессию в глобальной переменной для использования в client
+        # Создаем savepoint для изоляции
+        # Savepoint позволяет коммитить данные внутри теста (для TestClient),
+        # но откатывать их после теста для полной изоляции
+        # begin_nested() автоматически создаст транзакцию, если ее нет
+        savepoint = await session.begin_nested()
         _current_test_session = session
         try:
             yield session
         finally:
             _current_test_session = None
-        
-        # Очищаем данные после теста
-        try:
-            async with session.begin():
-                from sqlalchemy import text
-                await session.execute(text("DELETE FROM order_items"))
-                await session.execute(text("DELETE FROM orders"))
-                await session.execute(text("DELETE FROM addresses"))
-                await session.execute(text("DELETE FROM products"))
-                await session.execute(text("DELETE FROM users"))
-        except Exception:
-            pass
+            # Всегда откатываем savepoint для изоляции тестов
+            # Это откатит все изменения, сделанные в тесте
+            # Если savepoint уже закрыт, очищаем данные вручную
+            try:
+                await savepoint.rollback()
+            except Exception:
+                # Savepoint уже закрыт - очищаем данные вручную для гарантии изоляции
+                try:
+                    async with session.begin():
+                        from sqlalchemy import text
+                        await session.execute(text("DELETE FROM order_items"))
+                        await session.execute(text("DELETE FROM orders"))
+                        await session.execute(text("DELETE FROM addresses"))
+                        await session.execute(text("DELETE FROM products"))
+                        await session.execute(text("DELETE FROM users"))
+                except Exception:
+                    pass
 
 
 @pytest.fixture
@@ -166,9 +175,11 @@ def client(engine, tables):
         global _current_test_session, _test_session_factory
         if _current_test_session is not None:
             # Используем существующую сессию из controller_session
+            # Не коммитим здесь, так как savepoint в controller_session обеспечит изоляцию
             yield _current_test_session
         else:
             # Создаем новую сессию для тестов, которые не используют controller_session
+            # Для таких тестов изоляция не критична, так как они обычно не создают данные
             if _test_session_factory is None:
                 from sqlalchemy.ext.asyncio import async_sessionmaker
                 _test_session_factory = async_sessionmaker(
@@ -177,7 +188,6 @@ def client(engine, tables):
             async with _test_session_factory() as session:
                 try:
                     yield session
-                    await session.commit()
                 except Exception:
                     await session.rollback()
                     raise
