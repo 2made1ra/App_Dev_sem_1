@@ -1,17 +1,38 @@
-# Лабораторная работа 3
+# Лабораторная работа 5
 
 Веб-приложение на базе фреймворка Litestar с использованием Dependency Injection и SQLAlchemy ORM для работы с пользователями.
+
+## Оглавление
+
+- [Быстрый старт](#быстрый-старт)
+- [Установка и запуск](#установка-и-запуск)
+  - [Вариант 1: Запуск через Docker Compose (Рекомендуется)](#вариант-1-запуск-через-docker-compose-рекомендуется)
+  - [Вариант 2: Локальный запуск (для разработки)](#вариант-2-локальный-запуск-для-разработки)
+- [Доступ к сервисам](#доступ-к-сервисам)
+- [API Документация](#api-документация)
+- [API Эндпоинты](#api-эндпоинты)
+  - [Получить пользователя по ID](#получить-пользователя-по-id)
+  - [Получить список пользователей](#получить-список-пользователей)
+  - [Создать пользователя](#создать-пользователя)
+  - [Обновить пользователя](#обновить-пользователя)
+  - [Удалить пользователя](#удалить-пользователя)
+- [Разработка](#разработка)
+  - [Линтеры и форматеры](#линтеры-и-форматеры)
+  - [Работа с Docker](#работа-с-docker)
+  - [Доступ к базе данных](#доступ-к-базе-данных)
+- [Структура данных](#структура-данных)
+- [Обработка ошибок](#обработка-ошибок)
 
 ## Быстрый старт
 
 ```bash
 # 1. Создайте .env файл (см. раздел "Установка и запуск")
 # 2. Запустите всё одной командой:
-docker-compose up -d
+docker compose up --build
 
 # 3. Приложение доступно по адресу:
 # http://localhost:8000
-# http://localhost:8000/schema/swagger (API документация)
+# http://localhost:8000/docs (API документация)
 ```
 
 ## Установка и запуск
@@ -35,27 +56,38 @@ POSTGRES_DB=lab_db2
 
 PGADMIN_DEFAULT_EMAIL=admin@lab2.com
 PGADMIN_DEFAULT_PASSWORD=admin
+
+DB_HOST=db
+DB_PORT=5432
+HOST=0.0.0.0
+PORT=8000
 ```
 
-> **Примечание:** `DATABASE_URL` для контейнера настраивается автоматически в `docker-compose.yml`.
+> **Примечание:** `DATABASE_URL` для контейнера настраивается автоматически в `docker-compose.yml`. Переменные `DB_HOST` и `DB_PORT` используются в `entrypoint.sh` для ожидания готовности базы данных.
 
-#### 3. Запуск всех сервисов
+#### 3. Сборка и запуск всех сервисов
 
 ```bash
-docker-compose up -d
+# Сборка образа и запуск
+docker compose up --build
+
+# Или в фоновом режиме
+docker compose up --build -d
 ```
 
 Эта команда автоматически:
-- Соберёт Docker образ приложения
+- Соберёт Docker образ приложения (используя `Dockerfile`)
 - Запустит PostgreSQL базу данных
 - Запустит PgAdmin
-- Применит миграции базы данных
+- Применит миграции базы данных через `entrypoint.sh`
 - Запустит веб-приложение
+
+**Примечание:** При первом запуске или при изменении `Dockerfile` используйте флаг `--build` для пересборки образа. Скрипт `entrypoint.sh` автоматически ожидает готовности базы данных и применяет миграции перед запуском приложения.
 
 #### 4. Проверка статуса
 
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 Все сервисы должны быть в статусе `Up`:
@@ -67,25 +99,25 @@ docker-compose ps
 
 ```bash
 # Все логи
-docker-compose logs -f
+docker compose logs -f
 
 # Только приложение
-docker-compose logs -f app
+docker compose logs -f app
 
 # Только база данных
-docker-compose logs -f db
+docker compose logs -f db
 ```
 
 #### 6. Остановка сервисов
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 Для полной очистки (включая volumes):
 
 ```bash
-docker-compose down -v
+docker compose down -v
 ```
 
 ---
@@ -125,7 +157,7 @@ uv sync
 #### 4. Запуск базы данных
 
 ```bash
-docker-compose up -d db pgadmin
+docker compose up -d db pgadmin
 ```
 
 Это запустит только:
@@ -155,7 +187,7 @@ python main.py
 После запуска приложение и сервисы будут доступны по следующим адресам:
 
 - **Веб-приложение**: http://localhost:8000
-- **API документация (Swagger)**: http://localhost:8000/schema/swagger
+- **API документация (Swagger)**: http://localhost:8000/docs
 - **PgAdmin**: http://localhost:8081
 - **PostgreSQL**: localhost:5433
 
@@ -163,7 +195,7 @@ python main.py
 
 После запуска приложения доступна интерактивная документация:
 
-- **Swagger UI**: http://localhost:8000/schema/swagger
+- **Swagger UI**: http://localhost:8000/docs
 - **OpenAPI JSON**: http://localhost:8000/schema/openapi.json
 
 ## API Эндпоинты
@@ -300,38 +332,79 @@ curl -X DELETE http://localhost:8000/users/1
 
 ## Разработка
 
+### Линтеры и форматеры
+
+Проект использует `pre-commit` для автоматической проверки кода перед коммитом.
+
+#### Установка pre-commit
+
+```bash
+# Установка хуков
+uv run pre-commit install
+```
+
+#### Ручной запуск проверок
+
+```bash
+# Запуск всех проверок на всех файлах
+uv run pre-commit run --all-files
+
+# Форматирование кода
+uv run black app
+
+# Сортировка импортов
+uv run isort app
+
+# Проверка качества кода (без миграций)
+uv run pylint app --ignore=migrations
+```
+
+#### Конфигурация
+
+- **Black** и **isort**: настройки в `pyproject.toml`
+- **Pylint**: настройки в `.pylintrc`
+- **Pre-commit**: настройки в `.pre-commit-config.yaml`
+
+Миграции Alembic исключены из проверки pylint, так как они генерируются автоматически.
+
 ### Работа с Docker
 
-#### Создание миграций (в контейнере)
+#### Сборка образа
 
 ```bash
-# Создать новую миграцию
-docker-compose exec app sh -c "cd app && ../.venv/bin/alembic revision --autogenerate -m 'описание изменений'"
+# Сборка образа приложения
+docker compose build
 
-# Применить миграции
-docker-compose exec app sh -c "cd app && ../.venv/bin/alembic upgrade head"
+# Сборка с пересозданием кеша
+docker compose build --no-cache
 ```
 
-#### Создание миграций (локально)
+#### Entrypoint
 
-Если вы запускаете приложение локально:
+При запуске контейнера используется `entrypoint.sh`, который:
+1. Ожидает готовности базы данных (проверка через `netcat`)
+2. Применяет миграции Alembic автоматически
+3. Запускает приложение
+
+#### Создание миграций
 
 ```bash
+# В контейнере
+docker compose exec app sh -c "cd app && uv run alembic revision --autogenerate -m 'описание изменений'"
+
+# Локально
 cd app
-../.venv/bin/alembic revision --autogenerate -m "описание изменений"
-../.venv/bin/alembic upgrade head
+uv run alembic revision --autogenerate -m "описание изменений"
 ```
 
-### Горячая перезагрузка (для разработки)
-
-При использовании Docker, изменения в коде автоматически подхватываются благодаря volume mounts. Однако для применения изменений в зависимостях или перезапуска приложения:
+#### Перезапуск сервисов
 
 ```bash
 # Перезапустить только приложение
-docker-compose restart app
+docker compose restart app
 
 # Перезапустить все сервисы
-docker-compose restart
+docker compose restart
 ```
 
 ### Доступ к базе данных

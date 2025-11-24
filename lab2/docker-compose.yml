@@ -14,7 +14,7 @@ services:
     networks:
       - pg_network_lab2
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-lab_db2}"]
       interval: 5s
       timeout: 5s
       retries: 5
