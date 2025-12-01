@@ -72,6 +72,7 @@ services:
     volumes:
       - ./app:/app/app
       - ./main.py:/app/main.py
+      - ./producer.py:/app/producer.py
     networks:
       - pg_network_lab2
     depends_on:

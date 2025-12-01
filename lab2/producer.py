@@ -61,8 +61,8 @@ def send_message(
     """
     channel = connection.channel()
 
-    # Объявляем очередь (на случай, если она еще не создана)
-    channel.queue_declare(queue=queue_name, durable=True)
+    # Не объявляем очередь - она уже создана consumer'ом через FastStream
+    # Если очередь не существует, RabbitMQ создаст её автоматически при отправке
 
     # Отправляем сообщение
     channel.basic_publish(

@@ -1,6 +1,6 @@
-# Лабораторная работа 5
+# Лабораторная работа 6
 
-Веб-приложение на базе фреймворка Litestar с использованием Dependency Injection и SQLAlchemy ORM для работы с пользователями.
+Веб-приложение на базе фреймворка Litestar с использованием Dependency Injection, SQLAlchemy ORM и RabbitMQ для асинхронной обработки сообщений о пользователях, продуктах и заказах.
 
 ## Оглавление
 
@@ -61,6 +61,13 @@ DB_HOST=db
 DB_PORT=5432
 HOST=0.0.0.0
 PORT=8000
+
+# RabbitMQ настройки
+RABBITMQ_HOST=rabbitmq
+RABBITMQ_PORT=5672
+RABBITMQ_VHOST=local
+RABBITMQ_USER=guest
+RABBITMQ_PASSWORD=guest
 ```
 
 > **Примечание:** `DATABASE_URL` для контейнера настраивается автоматически в `docker-compose.yml`. Переменные `DB_HOST` и `DB_PORT` используются в `entrypoint.sh` для ожидания готовности базы данных.
@@ -79,8 +86,10 @@ docker compose up --build -d
 - Соберёт Docker образ приложения (используя `Dockerfile`)
 - Запустит PostgreSQL базу данных
 - Запустит PgAdmin
+- Запустит RabbitMQ брокер сообщений
 - Применит миграции базы данных через `entrypoint.sh`
-- Запустит веб-приложение
+- Запустит веб-приложение (REST API)
+- Запустит RabbitMQ worker для обработки сообщений
 
 **Примечание:** При первом запуске или при изменении `Dockerfile` используйте флаг `--build` для пересборки образа. Скрипт `entrypoint.sh` автоматически ожидает готовности базы данных и применяет миграции перед запуском приложения.
 
@@ -91,9 +100,11 @@ docker compose ps
 ```
 
 Все сервисы должны быть в статусе `Up`:
-- `app_lab3` - веб-приложение на порту `8000`
+- `app_lab3` - веб-приложение (REST API) на порту `8000`
+- `rabbitmq_worker_lab2` - RabbitMQ worker для обработки сообщений
 - `db_postgres_lab2` - PostgreSQL на порту `5433`
 - `pgadmin4_lab2` - PgAdmin на порту `8081`
+- `rabbitmq_lab2` - RabbitMQ на портах `5672` (AMQP) и `15672` (Management UI)
 
 #### 5. Просмотр логов
 
@@ -106,6 +117,12 @@ docker compose logs -f app
 
 # Только база данных
 docker compose logs -f db
+
+# Только RabbitMQ
+docker compose logs -f rabbitmq
+
+# Только RabbitMQ worker
+docker compose logs -f rabbitmq_worker
 ```
 
 #### 6. Остановка сервисов
@@ -190,6 +207,8 @@ python main.py
 - **API документация (Swagger)**: http://localhost:8000/docs
 - **PgAdmin**: http://localhost:8081
 - **PostgreSQL**: localhost:5433
+- **RabbitMQ Management UI**: http://localhost:15672 (логин: `guest`, пароль: `guest`)
+- **RabbitMQ AMQP**: localhost:5672
 
 ## API Документация
 
@@ -426,6 +445,70 @@ docker compose restart
 | description | str \| None | Описание пользователя (опционально) |
 | created_at | datetime | Дата и время создания |
 | updated_at | datetime \| None | Дата и время последнего обновления |
+
+## RabbitMQ
+
+Проект использует RabbitMQ для асинхронной обработки сообщений о создании и обновлении продуктов и заказов.
+
+### Архитектура
+
+- **REST API** (Litestar): Получение данных (GET запросы)
+- **RabbitMQ**: Создание и обновление данных (асинхронно через очереди)
+- **RabbitMQ Worker**: Отдельный процесс для обработки сообщений из очередей
+
+### Очереди
+
+- `product` - очередь для создания продуктов
+- `product_update` - очередь для обновления продуктов
+- `order` - очередь для создания заказов
+- `order_update` - очередь для обновления статуса заказов
+
+### Использование Producer скрипта
+
+Для отправки тестовых данных в RabbitMQ используйте producer скрипт:
+
+```bash
+# В Docker контейнере
+docker compose exec app uv run python producer.py
+
+# Локально (если RabbitMQ доступен на localhost:5672)
+uv run python producer.py
+```
+
+Скрипт создаст:
+- 5 тестовых продуктов
+- 3 тестовых заказа
+
+**Важно:** Перед запуском producer убедитесь, что в базе данных существуют:
+- Пользователь с `user_id=1` (или установите `TEST_USER_ID` в переменных окружения)
+- Адрес доставки с `delivery_address_id=1` (или установите `TEST_DELIVERY_ADDRESS_ID`)
+
+### Веб-интерфейс RabbitMQ
+
+Доступен по адресу: http://localhost:15672
+
+- **Логин:** `guest`
+- **Пароль:** `guest`
+
+В интерфейсе можно:
+- Просматривать очереди и их статистику
+- Мониторить сообщения
+- Проверять подключения и каналы
+
+### Особенности обработки
+
+1. **Создание заказов:**
+   - Проверяется наличие всех товаров (`stock_quantity > 0`)
+   - Если хотя бы один товар закончился (`stock_quantity == 0`), заказ отклоняется
+   - При успешном создании заказа количество товаров на складе уменьшается
+
+2. **Обновление продуктов:**
+   - При обновлении проверяется, не закончился ли товар
+   - Если `stock_quantity == 0`, в логах появляется предупреждение
+
+3. **Получение данных:**
+   - Все GET запросы работают через REST API (синхронно)
+   - Создание и обновление доступно как через RabbitMQ, так и через REST API (для совместимости)
 
 ## Обработка ошибок
 
