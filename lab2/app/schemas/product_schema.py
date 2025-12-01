@@ -31,6 +31,15 @@ class ProductUpdate(BaseModel):
     )
 
 
+class ProductUpdateMessage(BaseModel):
+    """Схема для сообщения обновления продукта через RabbitMQ."""
+
+    product_id: int = Field(..., gt=0, description="ID продукта для обновления")
+    product_data: ProductUpdate = Field(
+        ..., description="Данные для обновления продукта"
+    )
+
+
 class ProductResponse(BaseModel):
     """Схема для ответа API с данными продукта."""
 

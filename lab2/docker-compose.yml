@@ -37,6 +37,20 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_lab2
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_VHOST=local
+    volumes:
+      - rabbitmq_data:/data
+    networks:
+      - pg_network_lab2
+    restart: unless-stopped
+
   app:
     build:
       context: .
@@ -48,6 +62,11 @@ services:
       - DB_PORT=${DB_PORT:-5432}
       - HOST=${HOST:-0.0.0.0}
       - PORT=${PORT:-8000}
+      - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
+      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
+      - RABBITMQ_VHOST=${RABBITMQ_VHOST:-local}
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
     ports:
       - "8000:8000"
     volumes:
@@ -58,12 +77,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     command: ["uv", "run", "python", "main.py"]
     restart: unless-stopped
 
 volumes:
   db_data_lab2:
   pgadmin_data_lab2:
+  rabbitmq_data:
 
 networks:
   pg_network_lab2:
