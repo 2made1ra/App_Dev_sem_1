@@ -41,6 +41,13 @@ class OrderUpdate(BaseModel):
     status: str | None = Field(None, description="Статус заказа")
 
 
+class OrderUpdateMessage(BaseModel):
+    """Схема для сообщения обновления заказа через RabbitMQ."""
+
+    order_id: int = Field(..., gt=0, description="ID заказа для обновления")
+    order_data: OrderUpdate = Field(..., description="Данные для обновления заказа")
+
+
 class OrderResponse(BaseModel):
     """Схема для ответа API с данными заказа."""
 

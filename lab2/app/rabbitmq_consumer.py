@@ -15,13 +15,19 @@ from app.dependencies import (
     provide_product_repository,
     provide_product_service,
 )
+from app.repositories.order_repository import OrderRepository
 from app.repositories.product_repository import ProductRepository
-from app.schemas.order_schema import OrderCreate, OrderUpdate
+from app.schemas.order_schema import (
+    OrderCreate,
+    OrderUpdate,
+    OrderUpdateMessage,
+)
 from app.schemas.product_schema import (
     ProductCreate,
     ProductUpdate,
     ProductUpdateMessage,
 )
+from app.services.order_service import OrderService
 from app.services.product_service import ProductService
 
 # Настройка логирования
@@ -78,6 +84,21 @@ async def get_product_service(
 ) -> ProductService:
     """Провайдер сервиса продуктов."""
     return ProductService(product_repository)
+
+
+async def get_order_repository(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> OrderRepository:
+    """Провайдер репозитория заказов."""
+    return OrderRepository()
+
+
+async def get_order_service(
+    order_repository: Annotated[OrderRepository, Depends(get_order_repository)],
+    product_repository: Annotated[ProductRepository, Depends(get_product_repository)],
+) -> OrderService:
+    """Провайдер сервиса заказов."""
+    return OrderService(order_repository, product_repository)
 
 
 # Обработчики сообщений о продукции
@@ -142,3 +163,90 @@ async def subscribe_product_update(
         logger.error("Error updating product: %s", e)
     except (RuntimeError, ConnectionError) as e:
         logger.error("Unexpected error updating product: %s", e, exc_info=True)
+
+
+# Обработчики сообщений о заказах
+@broker.subscriber("order")
+async def subscribe_order_create(
+    order_data: OrderCreate,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    order_service: Annotated[OrderService, Depends(get_order_service)],
+    product_service: Annotated[ProductService, Depends(get_product_service)],
+) -> None:
+    """
+    Обработчик создания заказа через RabbitMQ.
+
+    Проверяет наличие всех товаров перед созданием заказа.
+    Если хотя бы один товар закончился (stock_quantity == 0), заказ не создается.
+
+    Args:
+        order_data: Данные для создания заказа
+        session: Сессия базы данных
+        order_service: Сервис для работы с заказами
+        product_service: Сервис для работы с продуктами
+    """
+    try:
+        logger.info("Received order create request: User ID=%s", order_data.user_id)
+
+        # Проверка наличия всех товаров перед созданием заказа
+        out_of_stock_products = []
+        for item in order_data.items:
+            product = await product_service.get_by_id(session, item.product_id)
+            if not product:
+                logger.error(
+                    "Product with ID=%s not found, order rejected", item.product_id
+                )
+                return
+            if product.stock_quantity == 0:
+                out_of_stock_products.append(
+                    {"product_id": product.id, "name": product.name}
+                )
+
+        # Если есть товары, которые закончились, отклоняем заказ
+        if out_of_stock_products:
+            logger.warning(
+                "Order rejected: products out of stock: %s", out_of_stock_products
+            )
+            return
+
+        # Создаем заказ (OrderService.create уже проверяет достаточность количества)
+        order = await order_service.create(session, order_data)
+        logger.info(
+            "Order created successfully: ID=%s, User ID=%s, Total=%s",
+            order.id,
+            order.user_id,
+            order.total_price,
+        )
+    except ValueError as e:
+        logger.error("Error creating order: %s", e)
+    except (RuntimeError, ConnectionError) as e:
+        logger.error("Unexpected error creating order: %s", e, exc_info=True)
+
+
+@broker.subscriber("order_update")
+async def subscribe_order_update(
+    message: OrderUpdateMessage,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    order_service: Annotated[OrderService, Depends(get_order_service)],
+) -> None:
+    """
+    Обработчик обновления статуса заказа через RabbitMQ.
+
+    Args:
+        message: Сообщение с ID заказа и данными для обновления
+        session: Сессия базы данных
+        order_service: Сервис для работы с заказами
+    """
+    try:
+        logger.info("Received order update request: ID=%s", message.order_id)
+
+        order = await order_service.update(
+            session, message.order_id, message.order_data
+        )
+        logger.info(
+            "Order updated successfully: ID=%s, Status=%s", order.id, order.status
+        )
+    except ValueError as e:
+        logger.error("Error updating order: %s", e)
+    except (RuntimeError, ConnectionError) as e:
+        logger.error("Unexpected error updating order: %s", e, exc_info=True)
