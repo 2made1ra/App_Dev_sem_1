@@ -8,12 +8,13 @@ from app.controllers.product_controller import ProductController
 from app.controllers.order_controller import OrderController
 from app.dependencies import (
     provide_db_session,
-    provide_user_repository,
-    provide_user_service,
-    provide_product_repository,
-    provide_product_service,
     provide_order_repository,
     provide_order_service,
+    provide_product_repository,
+    provide_product_service,
+    provide_redis_client,
+    provide_user_repository,
+    provide_user_service,
 )
 
 
@@ -25,6 +26,7 @@ app = Litestar(
     ],
     dependencies={
         "db_session": Provide(provide_db_session),
+        "redis_client": Provide(provide_redis_client),
         "user_repository": Provide(provide_user_repository),
         "user_service": Provide(provide_user_service),
         "product_repository": Provide(provide_product_repository),

@@ -51,6 +51,22 @@ services:
       - pg_network_lab2
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - pg_network_lab2
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
   app:
     build:
       context: .
@@ -67,6 +83,10 @@ services:
       - RABBITMQ_VHOST=${RABBITMQ_VHOST:-local}
       - RABBITMQ_USER=${RABBITMQ_USER:-guest}
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_DB=${REDIS_DB:-0}
+      - REDIS_DECODE_RESPONSES=${REDIS_DECODE_RESPONSES:-true}
     ports:
       - "8000:8000"
     volumes:
@@ -80,6 +100,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_started
+      redis:
+        condition: service_healthy
     command: ["uv", "run", "python", "main.py"]
     restart: unless-stopped
 
@@ -114,6 +136,7 @@ volumes:
   db_data_lab2:
   pgadmin_data_lab2:
   rabbitmq_data:
+  redis-data:
 
 networks:
   pg_network_lab2:

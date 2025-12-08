@@ -1,12 +1,27 @@
+import redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session_factory
+from app.redis_client import get_redis_client
 from app.repositories.order_repository import OrderRepository
 from app.repositories.product_repository import ProductRepository
 from app.repositories.user_repository import UserRepository
 from app.services.order_service import OrderService
 from app.services.product_service import ProductService
 from app.services.user_service import UserService
+
+
+def provide_redis_client() -> redis.Redis:
+    """
+    Провайдер клиента Redis.
+
+    Создает и возвращает клиент Redis с использованием настроек из переменных окружения.
+    Клиент создается при каждом запросе (stateless).
+
+    Returns:
+        redis.Redis: Экземпляр клиента Redis
+    """
+    return get_redis_client()
 
 
 async def provide_db_session() -> AsyncSession:
@@ -39,17 +54,20 @@ async def provide_user_repository(db_session: AsyncSession) -> UserRepository:
     return UserRepository()
 
 
-async def provide_user_service(user_repository: UserRepository) -> UserService:
+async def provide_user_service(
+    user_repository: UserRepository, redis_client: redis.Redis
+) -> UserService:
     """
     Провайдер сервиса пользователей.
 
     Args:
         user_repository: Репозиторий пользователей (внедряется через DI)
+        redis_client: Клиент Redis для кэширования (внедряется через DI)
 
     Returns:
         UserService: Экземпляр сервиса пользователей
     """
-    return UserService(user_repository)
+    return UserService(user_repository, redis_client)
 
 
 async def provide_product_repository(db_session: AsyncSession) -> ProductRepository:
@@ -66,18 +84,19 @@ async def provide_product_repository(db_session: AsyncSession) -> ProductReposit
 
 
 async def provide_product_service(
-    product_repository: ProductRepository,
+    product_repository: ProductRepository, redis_client: redis.Redis
 ) -> ProductService:
     """
     Провайдер сервиса продуктов.
 
     Args:
         product_repository: Репозиторий продуктов (внедряется через DI)
+        redis_client: Клиент Redis для кэширования (внедряется через DI)
 
     Returns:
         ProductService: Экземпляр сервиса продуктов
     """
-    return ProductService(product_repository)
+    return ProductService(product_repository, redis_client)
 
 
 async def provide_order_repository(db_session: AsyncSession) -> OrderRepository:
