@@ -7,9 +7,11 @@ from app.models import Base
 from app.repositories.user_repository import UserRepository
 from app.repositories.product_repository import ProductRepository
 from app.repositories.order_repository import OrderRepository
+from app.repositories.report_repository import ReportRepository
 from app.services.user_service import UserService
 from app.services.product_service import ProductService
 from app.services.order_service import OrderService
+from app.services.report_service import ReportService
 from main import app
 
 # Тестовая база данных (SQLite in-memory)
@@ -54,6 +56,7 @@ async def session(engine, tables):
         # Очищаем данные перед каждым тестом для полной изоляции
         async with session.begin():
             from sqlalchemy import text
+            await session.execute(text("DELETE FROM reports"))
             await session.execute(text("DELETE FROM order_items"))
             await session.execute(text("DELETE FROM orders"))
             await session.execute(text("DELETE FROM addresses"))
@@ -82,6 +85,7 @@ async def controller_session(engine, tables):
         # Очищаем данные перед тестом для полной изоляции
         async with session.begin():
             from sqlalchemy import text
+            await session.execute(text("DELETE FROM reports"))
             await session.execute(text("DELETE FROM order_items"))
             await session.execute(text("DELETE FROM orders"))
             await session.execute(text("DELETE FROM addresses"))
@@ -105,14 +109,15 @@ async def controller_session(engine, tables):
                 await savepoint.rollback()
             except Exception:
                 # Savepoint уже закрыт - очищаем данные вручную для гарантии изоляции
-                try:
-                    async with session.begin():
-                        from sqlalchemy import text
-                        await session.execute(text("DELETE FROM order_items"))
-                        await session.execute(text("DELETE FROM orders"))
-                        await session.execute(text("DELETE FROM addresses"))
-                        await session.execute(text("DELETE FROM products"))
-                        await session.execute(text("DELETE FROM users"))
+                    try:
+                        async with session.begin():
+                            from sqlalchemy import text
+                            await session.execute(text("DELETE FROM reports"))
+                            await session.execute(text("DELETE FROM order_items"))
+                            await session.execute(text("DELETE FROM orders"))
+                            await session.execute(text("DELETE FROM addresses"))
+                            await session.execute(text("DELETE FROM products"))
+                            await session.execute(text("DELETE FROM users"))
                 except Exception:
                     pass
 
@@ -133,6 +138,12 @@ def product_repository():
 def order_repository():
     """Фикстура для репозитория заказов."""
     return OrderRepository()
+
+
+@pytest.fixture
+def report_repository():
+    """Фикстура для репозитория отчетов."""
+    return ReportRepository()
 
 
 @pytest.fixture(scope="session")
@@ -167,6 +178,8 @@ def client(engine, tables):
         provide_product_service,
         provide_order_repository,
         provide_order_service,
+        provide_report_repository,
+        provide_report_service,
     )
     
     # Используем ту же сессию, что и controller_session через глобальную переменную
@@ -200,12 +213,14 @@ def client(engine, tables):
     from app.controllers.user_controller import UserController
     from app.controllers.product_controller import ProductController
     from app.controllers.order_controller import OrderController
+    from app.controllers.report_controller import ReportController
     
     test_app = Litestar(
         route_handlers=[
             UserController,
             ProductController,
             OrderController,
+            ReportController,
         ],
         dependencies={
             "db_session": Provide(provide_test_session),
@@ -215,6 +230,8 @@ def client(engine, tables):
             "product_service": Provide(provide_product_service),
             "order_repository": Provide(provide_order_repository),
             "order_service": Provide(provide_order_service),
+            "report_repository": Provide(provide_report_repository),
+            "report_service": Provide(provide_report_service),
         },
         openapi_config=OpenAPIConfig(
             title="E-Commerce API (Test)",

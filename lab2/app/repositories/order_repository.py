@@ -1,3 +1,5 @@
+from datetime import date, datetime
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -189,3 +191,31 @@ class OrderRepository:
 
         result = await session.execute(stmt)
         return result.scalar_one() or 0
+
+    async def get_orders_by_date(
+        self, session: AsyncSession, order_date: date
+    ) -> list[Order]:
+        """
+        Получить все заказы, созданные в указанную дату.
+
+        Args:
+            session: Асинхронная сессия базы данных
+            order_date: Дата для получения заказов
+
+        Returns:
+            Список заказов с загруженными items, созданных в указанную дату
+        """
+        # Создаем диапазон времени для указанной даты
+        start_datetime = datetime.combine(order_date, datetime.min.time())
+        end_datetime = datetime.combine(order_date, datetime.max.time())
+
+        stmt = (
+            select(Order)
+            .where(Order.created_at >= start_datetime)
+            .where(Order.created_at <= end_datetime)
+            .options(selectinload(Order.items))
+            .order_by(Order.created_at.desc())
+        )
+
+        result = await session.execute(stmt)
+        return list(result.scalars().all())

@@ -5,9 +5,11 @@ from app.database import async_session_factory
 from app.redis_client import get_redis_client
 from app.repositories.order_repository import OrderRepository
 from app.repositories.product_repository import ProductRepository
+from app.repositories.report_repository import ReportRepository
 from app.repositories.user_repository import UserRepository
 from app.services.order_service import OrderService
 from app.services.product_service import ProductService
+from app.services.report_service import ReportService
 from app.services.user_service import UserService
 
 
@@ -127,3 +129,35 @@ async def provide_order_service(
         OrderService: Экземпляр сервиса заказов
     """
     return OrderService(order_repository, product_repository)
+
+
+async def provide_report_repository(
+    db_session: AsyncSession,
+) -> ReportRepository:
+    """
+    Провайдер репозитория отчетов.
+
+    Args:
+        db_session: Сессия базы данных (внедряется через DI)
+
+    Returns:
+        ReportRepository: Экземпляр репозитория отчетов
+    """
+    return ReportRepository()
+
+
+async def provide_report_service(
+    order_repository: OrderRepository,
+    report_repository: ReportRepository,
+) -> ReportService:
+    """
+    Провайдер сервиса отчетов.
+
+    Args:
+        order_repository: Репозиторий заказов (внедряется через DI)
+        report_repository: Репозиторий отчетов (внедряется через DI)
+
+    Returns:
+        ReportService: Экземпляр сервиса отчетов
+    """
+    return ReportService(order_repository, report_repository)

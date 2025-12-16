@@ -3,9 +3,10 @@ from litestar import Litestar
 from litestar.di import Provide
 from litestar.openapi import OpenAPIConfig
 
-from app.controllers.user_controller import UserController
-from app.controllers.product_controller import ProductController
 from app.controllers.order_controller import OrderController
+from app.controllers.product_controller import ProductController
+from app.controllers.report_controller import ReportController
+from app.controllers.user_controller import UserController
 from app.dependencies import (
     provide_db_session,
     provide_order_repository,
@@ -13,6 +14,8 @@ from app.dependencies import (
     provide_product_repository,
     provide_product_service,
     provide_redis_client,
+    provide_report_repository,
+    provide_report_service,
     provide_user_repository,
     provide_user_service,
 )
@@ -23,6 +26,7 @@ app = Litestar(
         UserController,
         ProductController,
         OrderController,
+        ReportController,
     ],
     dependencies={
         "db_session": Provide(provide_db_session),
@@ -33,6 +37,8 @@ app = Litestar(
         "product_service": Provide(provide_product_service),
         "order_repository": Provide(provide_order_repository),
         "order_service": Provide(provide_order_service),
+        "report_repository": Provide(provide_report_repository),
+        "report_service": Provide(provide_report_service),
     },
     openapi_config=OpenAPIConfig(
         title="E-Commerce API",

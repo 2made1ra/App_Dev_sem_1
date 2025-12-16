@@ -132,6 +132,74 @@ services:
     command: ["uv", "run", "python", "rabbitmq_worker.py"]
     restart: unless-stopped
 
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: scheduler_lab2
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin}@db:5432/${POSTGRES_DB:-lab_db2}
+      - DB_HOST=${DB_HOST:-db}
+      - DB_PORT=${DB_PORT:-5432}
+      - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
+      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
+      - RABBITMQ_VHOST=${RABBITMQ_VHOST:-local}
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_DB=${REDIS_DB:-0}
+      - REDIS_DECODE_RESPONSES=${REDIS_DECODE_RESPONSES:-true}
+    volumes:
+      - ./app:/app/app
+    networks:
+      - pg_network_lab2
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_started
+    command: ["uv", "run", "taskiq", "scheduler", "app.scheduler:scheduler", "--skip-first-run"]
+    restart: unless-stopped
+
+  taskiq_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: taskiq_worker_lab2
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin}@db:5432/${POSTGRES_DB:-lab_db2}
+      - DB_HOST=${DB_HOST:-db}
+      - DB_PORT=${DB_PORT:-5432}
+      - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
+      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
+      - RABBITMQ_VHOST=${RABBITMQ_VHOST:-local}
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_DB=${REDIS_DB:-0}
+      - REDIS_DECODE_RESPONSES=${REDIS_DECODE_RESPONSES:-true}
+    volumes:
+      - ./app:/app/app
+    networks:
+      - pg_network_lab2
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      scheduler:
+        condition: service_started
+    command: ["uv", "run", "taskiq", "worker", "app.scheduler:broker"]
+    restart: unless-stopped
+
 volumes:
   db_data_lab2:
   pgadmin_data_lab2:

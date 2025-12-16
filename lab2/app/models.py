@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -120,3 +120,24 @@ class Order(Base):
     items = relationship(
         "OrderItem", back_populates="order", cascade="all, delete-orphan"
     )
+    reports = relationship("Report", back_populates="order")
+
+
+class Report(Base):
+    __tablename__ = "reports"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        autoincrement=True,
+    )
+    report_at: Mapped[date] = mapped_column(nullable=False, index=True)
+    order_id: Mapped[int] = mapped_column(
+        ForeignKey("orders.id"), nullable=False, index=True
+    )
+    count_product: Mapped[int] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now)
+
+    # Связь с заказом
+    order = relationship("Order", back_populates="reports")
+
+    __table_args__ = (Index("idx_report_at_order_id", "report_at", "order_id"),)
