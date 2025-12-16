@@ -1,11 +1,11 @@
 """Тесты для API эндпоинтов отчетов."""
 
 import pytest
-from datetime import date, datetime
+from datetime import date
 from litestar.status_codes import HTTP_200_OK
 from litestar.testing import TestClient
 
-from app.models import Report, Order, User, Address, Product, OrderItem
+from app.models import Report, Order, User, Address, Product
 from app.repositories.report_repository import ReportRepository
 from app.repositories.order_repository import OrderRepository
 from app.repositories.user_repository import UserRepository
@@ -154,7 +154,6 @@ class TestReportController:
     async def test_get_report_empty_date(
         self,
         client: TestClient,
-        controller_session,
     ):
         """Тест GET /report с датой, для которой нет отчетов."""
         report_date = date(2020, 1, 1)
