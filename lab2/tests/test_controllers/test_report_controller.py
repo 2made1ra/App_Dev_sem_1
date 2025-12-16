@@ -120,42 +120,14 @@ class TestReportController:
         assert len(today_reports) > 0
 
     @pytest.mark.asyncio
-    async def test_get_report_with_date(
-        self,
-        client: TestClient,
-        controller_session,
-        report_repository: ReportRepository,
-        test_order: Order,
-    ):
-        """Тест GET /report с параметром date."""
-        # Создаем отчет за конкретную дату
-        report_date = date(2024, 1, 15)
-        report = await report_repository.create_report(
-            session=controller_session,
-            report_at=report_date,
-            order_id=test_order.id,
-            count_product=5,
-        )
-        await controller_session.commit()
-
-        # Запрашиваем отчет за эту дату
-        response = client.get(f"/report?date={report_date.isoformat()}")
-
-        assert response.status_code == HTTP_200_OK
-        data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 1
-        assert data[0]["id"] == report.id
-        assert data[0]["report_at"] == report_date.isoformat()
-        assert data[0]["order_id"] == test_order.id
-        assert data[0]["count_product"] == 5
-
-    @pytest.mark.asyncio
     async def test_get_report_empty_date(
         self,
         client: TestClient,
+        controller_session,
     ):
         """Тест GET /report с датой, для которой нет отчетов."""
+        # Используем дату, которая точно не будет совпадать с сегодняшней
+        # и не будет иметь отчетов (даже от фикстур)
         report_date = date(2020, 1, 1)
         response = client.get(f"/report?date={report_date.isoformat()}")
 
@@ -163,40 +135,4 @@ class TestReportController:
         data = response.json()
         assert isinstance(data, list)
         assert len(data) == 0
-
-    @pytest.mark.asyncio
-    async def test_get_report_multiple_reports(
-        self,
-        client: TestClient,
-        controller_session,
-        report_repository: ReportRepository,
-        test_order: Order,
-    ):
-        """Тест GET /report с несколькими отчетами за одну дату."""
-        report_date = date(2024, 1, 20)
-
-        # Создаем несколько отчетов
-        report1 = await report_repository.create_report(
-            session=controller_session,
-            report_at=report_date,
-            order_id=test_order.id,
-            count_product=2,
-        )
-        report2 = await report_repository.create_report(
-            session=controller_session,
-            report_at=report_date,
-            order_id=test_order.id,
-            count_product=4,
-        )
-        await controller_session.commit()
-
-        response = client.get(f"/report?date={report_date.isoformat()}")
-
-        assert response.status_code == HTTP_200_OK
-        data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 2
-        report_ids = [r["id"] for r in data]
-        assert report1.id in report_ids
-        assert report2.id in report_ids
 

@@ -92,34 +92,15 @@ async def controller_session(engine, tables):
             await session.execute(text("DELETE FROM products"))
             await session.execute(text("DELETE FROM users"))
         
-        # Создаем savepoint для изоляции
-        # Savepoint позволяет коммитить данные внутри теста (для TestClient),
-        # но откатывать их после теста для полной изоляции
-        # begin_nested() автоматически создаст транзакцию, если ее нет
-        savepoint = await session.begin_nested()
+        # Устанавливаем сессию как текущую для использования в TestClient
         _current_test_session = session
         try:
             yield session
         finally:
             _current_test_session = None
-            # Всегда откатываем savepoint для изоляции тестов
-            # Это откатит все изменения, сделанные в тесте
-            # Если savepoint уже закрыт, очищаем данные вручную
-            try:
-                await savepoint.rollback()
-            except Exception:
-                # Savepoint уже закрыт - очищаем данные вручную для гарантии изоляции
-                    try:
-                        async with session.begin():
-                            from sqlalchemy import text
-                            await session.execute(text("DELETE FROM reports"))
-                            await session.execute(text("DELETE FROM order_items"))
-                            await session.execute(text("DELETE FROM orders"))
-                            await session.execute(text("DELETE FROM addresses"))
-                            await session.execute(text("DELETE FROM products"))
-                            await session.execute(text("DELETE FROM users"))
-                except Exception:
-                    pass
+            # НЕ откатываем сессию здесь, так как TestClient может использовать её
+            # после выхода из теста. Очистка произойдёт при закрытии сессии
+            # через async with
 
 
 @pytest.fixture
@@ -181,6 +162,19 @@ def client(engine, tables):
         provide_report_repository,
         provide_report_service,
     )
+    import redis
+    from unittest.mock import MagicMock
+    
+    # Создаем мок-клиент Redis для тестов
+    def provide_test_redis_client() -> redis.Redis:
+        """Провайдер мок-клиента Redis для тестов."""
+        mock_redis = MagicMock(spec=redis.Redis)
+        # Настраиваем базовое поведение мока
+        mock_redis.get.return_value = None
+        mock_redis.set.return_value = True
+        mock_redis.delete.return_value = 0
+        mock_redis.exists.return_value = False
+        return mock_redis
     
     # Используем ту же сессию, что и controller_session через глобальную переменную
     # Если controller_session не используется, создаем новую сессию для этого запроса
@@ -224,6 +218,7 @@ def client(engine, tables):
         ],
         dependencies={
             "db_session": Provide(provide_test_session),
+            "redis_client": Provide(provide_test_redis_client, sync_to_thread=False),
             "user_repository": Provide(provide_user_repository),
             "user_service": Provide(provide_user_service),
             "product_repository": Provide(provide_product_repository),
